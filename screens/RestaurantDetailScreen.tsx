@@ -213,22 +213,6 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
                 {restaurant.phoneNumber ? 'Call Restaurant' : 'Phone Not Available'}
               </Text>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.actionButton,
-                !restaurant.address && styles.disabledButton
-              ]}
-              onPress={handleDirections}
-              disabled={!restaurant.address}
-            >
-              <Text style={[
-                styles.actionButtonText,
-                !restaurant.address && styles.disabledButtonText
-              ]}>
-                {restaurant.address ? 'Get Directions' : 'Address Not Available'}
-              </Text>
-            </TouchableOpacity>
           </View>
 
           {/* Bottom Navigation */}

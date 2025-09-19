@@ -223,6 +223,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 40,
+    alignSelf: "center",
   },
   noMoreCardsText: {
     fontSize: 24,

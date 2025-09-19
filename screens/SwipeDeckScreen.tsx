@@ -1,52 +1,54 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  Dimensions,
   Alert,
+  Dimensions,
   SafeAreaView,
   StatusBar,
-} from 'react-native';
-import Swiper from 'react-native-deck-swiper';
-import { RestaurantCard } from '../components/RestaurantCard';
-import { mockRestaurants } from '../data/mockRestaurants';
-import { Restaurant } from '../types/restaurant';
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import Swiper from "react-native-deck-swiper";
+import { RestaurantCard } from "../components/RestaurantCard";
+import { mockRestaurants } from "../data/mockRestaurants";
+import { Restaurant } from "../types/restaurant";
 
 interface SwipeDeckScreenProps {
   navigation: any; // We'll type this properly when we set up navigation
 }
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
-export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({ navigation }) => {
+export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
+  navigation,
+}) => {
   const [restaurants] = useState<Restaurant[]>(mockRestaurants);
   const [cardIndex, setCardIndex] = useState(0);
   const swiperRef = useRef<Swiper<Restaurant>>(null);
 
   // Handle when user swipes left (dismiss)
   const onSwipedLeft = (cardIndex: number) => {
-    console.log('Dismissed:', restaurants[cardIndex].name);
+    console.log("Dismissed:", restaurants[cardIndex].name);
     // You can add analytics tracking here
   };
 
   // Handle when user swipes right (match)
   const onSwipedRight = (cardIndex: number) => {
     const restaurant = restaurants[cardIndex];
-    console.log('Matched:', restaurant.name);
+    console.log("Matched:", restaurant.name);
 
     // Navigate to detail screen
-    navigation.navigate('RestaurantDetail', { restaurant });
+    navigation.navigate("RestaurantDetail", { restaurant });
   };
 
   // Handle when all cards are swiped
   const onSwipedAll = () => {
     Alert.alert(
-      'No more restaurants!',
-      'You\'ve seen all available restaurants. Check back later for more options!',
+      "No more restaurants!",
+      "You've seen all available restaurants. Check back later for more options!",
       [
         {
-          text: 'OK',
+          text: "OK",
           onPress: () => {
             // Reset the deck or navigate elsewhere
             setCardIndex(0);
@@ -70,7 +72,7 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({ navigation }) 
         restaurant={restaurant}
         onPress={() => {
           // Allow tapping the card to view details without swiping
-          navigation.navigate('RestaurantDetail', { restaurant });
+          navigation.navigate("RestaurantDetail", { restaurant });
         }}
       />
     );
@@ -110,57 +112,59 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({ navigation }) 
           onSwiping={onSwiping}
           cardIndex={cardIndex}
           backgroundColor="transparent"
-          stackSize={3}
-          stackSeparation={15}
+          stackSize={5}
           animateOverlayLabelsOpacity
           animateCardOpacity
           swipeBackCard
           disableBottomSwipe
           disableTopSwipe
           verticalSwipe={false}
+          cardVerticalMargin={0}
+          marginTop={0}
+          marginBottom={0}
           // Swipe threshold (how far to swipe before card disappears)
           swipeThreshold={screenWidth * 0.3}
           // Overlay labels for visual feedback
           overlayLabels={{
             left: {
-              title: 'PASS',
+              title: "PASS",
               style: {
                 label: {
-                  backgroundColor: '#FF6B6B',
-                  borderColor: '#FF6B6B',
-                  color: 'white',
+                  backgroundColor: "#FF6B6B",
+                  borderColor: "#FF6B6B",
+                  color: "white",
                   borderWidth: 1,
                   fontSize: 24,
-                  fontWeight: 'bold',
+                  fontWeight: "bold",
                   padding: 10,
                   borderRadius: 10,
                 },
                 wrapper: {
-                  flexDirection: 'column',
-                  alignItems: 'flex-end',
-                  justifyContent: 'flex-start',
+                  flexDirection: "column",
+                  alignItems: "flex-end",
+                  justifyContent: "flex-start",
                   marginTop: 30,
                   marginLeft: -30,
                 },
               },
             },
             right: {
-              title: 'MATCH!',
+              title: "MATCH!",
               style: {
                 label: {
-                  backgroundColor: '#4ECDC4',
-                  borderColor: '#4ECDC4',
-                  color: 'white',
+                  backgroundColor: "#4ECDC4",
+                  borderColor: "#4ECDC4",
+                  color: "white",
                   borderWidth: 1,
                   fontSize: 24,
-                  fontWeight: 'bold',
+                  fontWeight: "bold",
                   padding: 10,
                   borderRadius: 10,
                 },
                 wrapper: {
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  justifyContent: 'flex-start',
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  justifyContent: "flex-start",
                   marginTop: 30,
                   marginLeft: 30,
                 },
@@ -177,8 +181,7 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({ navigation }) 
         <Text style={styles.actionButtonsText}>
           {cardIndex < restaurants.length
             ? `${restaurants.length - cardIndex} restaurants left`
-            : 'All done!'
-          }
+            : "All done!"}
         </Text>
       </View>
     </SafeAreaView>
@@ -188,58 +191,59 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({ navigation }) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: "#1a1a1a",
   },
   header: {
     paddingHorizontal: 20,
     paddingVertical: 15,
-    alignItems: 'center',
+    alignItems: "center",
   },
   headerTitle: {
     fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
     marginBottom: 5,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
+    color: "#999",
+    textAlign: "center",
   },
   swiperContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "flex-start",
+    paddingTop: 20,
   },
   noMoreCards: {
     width: screenWidth * 0.9,
     height: screenHeight * 0.7,
-    backgroundColor: '#2a2a2a',
+    backgroundColor: "#2a2a2a",
     borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     padding: 40,
   },
   noMoreCardsText: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    textAlign: 'center',
+    fontWeight: "bold",
+    color: "#fff",
+    textAlign: "center",
     marginBottom: 10,
   },
   noMoreCardsSubtext: {
     fontSize: 16,
-    color: '#999',
-    textAlign: 'center',
+    color: "#999",
+    textAlign: "center",
     lineHeight: 24,
   },
   actionButtons: {
     paddingHorizontal: 20,
     paddingVertical: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
   actionButtonsText: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
 });

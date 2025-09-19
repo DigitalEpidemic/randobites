@@ -28,6 +28,8 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
   const [cardIndex, setCardIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [seenRestaurantIds, setSeenRestaurantIds] = useState<string[]>([]);
+  const [currentLocation, setCurrentLocation] = useState<any>(null);
   const swiperRef = useRef<Swiper<Restaurant>>(null);
 
   // Fetch nearby restaurants on component mount
@@ -35,7 +37,7 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
     fetchNearbyRestaurants();
   }, []);
 
-  const fetchNearbyRestaurants = async () => {
+  const fetchNearbyRestaurants = async (isRefresh: boolean = false) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -47,12 +49,27 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
         throw new Error('Unable to get your location. Please enable location services.');
       }
 
-      // Fetch nearby restaurants
-      const nearbyRestaurants = await RestaurantService.fetchNearbyRestaurants(
-        location,
-        5000, // 5km radius
-        20    // max 20 restaurants
-      );
+      // Store current location for later use
+      setCurrentLocation(location);
+
+      let nearbyRestaurants: Restaurant[];
+
+      if (isRefresh && seenRestaurantIds.length > 0) {
+        // Try to fetch fresh restaurants that haven't been seen
+        nearbyRestaurants = await RestaurantService.fetchFreshRestaurants(
+          location,
+          5000, // 5km radius initially
+          20,   // max 20 restaurants
+          seenRestaurantIds
+        );
+      } else {
+        // Initial fetch or no restaurants seen yet
+        nearbyRestaurants = await RestaurantService.fetchNearbyRestaurants(
+          location,
+          5000, // 5km radius
+          20    // max 20 restaurants
+        );
+      }
 
       if (nearbyRestaurants.length === 0) {
         throw new Error('No restaurants found in your area. Please try again later.');
@@ -70,13 +87,21 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
   };
 
   const retryFetchRestaurants = () => {
-    fetchNearbyRestaurants();
+    fetchNearbyRestaurants(true); // Force refresh to get new restaurants
   };
 
   // Handle when user swipes left (dismiss)
   const onSwipedLeft = (cardIndex: number) => {
-    console.log("Dismissed:", restaurants[cardIndex].name);
-    // You can add analytics tracking here
+    const restaurant = restaurants[cardIndex];
+    console.log("Dismissed:", restaurant.name);
+
+    // Track this restaurant as seen
+    setSeenRestaurantIds(prev => {
+      if (!prev.includes(restaurant.id)) {
+        return [...prev, restaurant.id];
+      }
+      return prev;
+    });
   };
 
   // Handle when user swipes right (match)
@@ -84,22 +109,35 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
     const restaurant = restaurants[cardIndex];
     console.log("Matched:", restaurant.name);
 
+    // Track this restaurant as seen
+    setSeenRestaurantIds(prev => {
+      if (!prev.includes(restaurant.id)) {
+        return [...prev, restaurant.id];
+      }
+      return prev;
+    });
+
     // Navigate to detail screen
     navigation.navigate("RestaurantDetail", { restaurant });
   };
 
   // Handle when all cards are swiped
   const onSwipedAll = () => {
+    const hasSeenRestaurants = seenRestaurantIds.length > 0;
+    const alertMessage = hasSeenRestaurants
+      ? "Looking for new restaurants in your area. This may include places further away."
+      : "Would you like to find more restaurants in your area?";
+
     Alert.alert(
       "No more restaurants!",
-      "Would you like to find more restaurants in your area?",
+      alertMessage,
       [
         {
           text: "No thanks",
           style: "cancel",
         },
         {
-          text: "Find more",
+          text: hasSeenRestaurants ? "Find new ones" : "Find more",
           onPress: () => {
             retryFetchRestaurants();
           },

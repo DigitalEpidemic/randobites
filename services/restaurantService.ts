@@ -59,16 +59,19 @@ export class RestaurantService {
   static async fetchNearbyRestaurants(
     location: LocationCoordinates,
     radiusInMeters: number = 5000, // Default 5km radius
-    maxResults: number = 20
+    maxResults: number = 20,
+    forceRefresh: boolean = false // New parameter to force fresh data
   ): Promise<Restaurant[]> {
     try {
-      // Check cache first
-      const cachedRestaurants = await this.getCachedRestaurants(
-        location,
-        radiusInMeters
-      );
-      if (cachedRestaurants) {
-        return this.shuffleArray(cachedRestaurants);
+      // If not forcing refresh, check cache first
+      if (!forceRefresh) {
+        const cachedRestaurants = await this.getCachedRestaurants(
+          location,
+          radiusInMeters
+        );
+        if (cachedRestaurants) {
+          return this.shuffleArray(cachedRestaurants);
+        }
       }
 
       if (!GEOAPIFY_API_KEY) {
@@ -89,11 +92,97 @@ export class RestaurantService {
         return this.shuffleArray(restaurants);
       }
 
+      // If no fresh restaurants found and we forced refresh, fall back to cached data
+      if (forceRefresh) {
+        const cachedRestaurants = await this.getCachedRestaurants(
+          location,
+          radiusInMeters
+        );
+        if (cachedRestaurants) {
+          console.log("No new restaurants found, returning shuffled cached data");
+          return this.shuffleArray(cachedRestaurants);
+        }
+      }
+
       // Fallback to mock data
       console.warn("No restaurants found, using mock data");
       return this.getMockRestaurantsWithRandomOrder();
     } catch (error) {
       console.error("Error fetching nearby restaurants:", error);
+      return this.getMockRestaurantsWithRandomOrder();
+    }
+  }
+
+  /**
+   * Fetch fresh restaurants, trying to avoid already seen ones
+   */
+  static async fetchFreshRestaurants(
+    location: LocationCoordinates,
+    radiusInMeters: number = 5000,
+    maxResults: number = 20,
+    seenRestaurantIds: string[] = []
+  ): Promise<Restaurant[]> {
+    try {
+      if (!GEOAPIFY_API_KEY) {
+        console.warn("Geoapify API key not configured, using mock data");
+        return this.getMockRestaurantsWithRandomOrder().filter(
+          restaurant => !seenRestaurantIds.includes(restaurant.id)
+        );
+      }
+
+      // Try fetching with a larger radius to find new restaurants
+      const expandedRadius = Math.min(radiusInMeters * 1.5, 10000); // Max 10km
+      let restaurants = await this.fetchFromGeoapify(
+        location,
+        expandedRadius,
+        maxResults * 2 // Fetch more to filter out seen ones
+      );
+
+      // Filter out already seen restaurants
+      const unseenRestaurants = restaurants.filter(
+        restaurant => !seenRestaurantIds.includes(restaurant.id)
+      );
+
+      if (unseenRestaurants.length > 0) {
+        // Cache the new results
+        await this.cacheRestaurants(location, radiusInMeters, restaurants);
+        return this.shuffleArray(unseenRestaurants.slice(0, maxResults));
+      }
+
+      // If still no new restaurants, try even larger radius
+      const maxRadius = 15000; // 15km max
+      if (expandedRadius < maxRadius) {
+        restaurants = await this.fetchFromGeoapify(
+          location,
+          maxRadius,
+          maxResults * 3
+        );
+
+        const newUnseenRestaurants = restaurants.filter(
+          restaurant => !seenRestaurantIds.includes(restaurant.id)
+        );
+
+        if (newUnseenRestaurants.length > 0) {
+          await this.cacheRestaurants(location, radiusInMeters, restaurants);
+          return this.shuffleArray(newUnseenRestaurants.slice(0, maxResults));
+        }
+      }
+
+      // If still no luck, return cached data excluding seen ones
+      const cachedRestaurants = await this.getCachedRestaurants(location, radiusInMeters);
+      if (cachedRestaurants) {
+        const unseenCached = cachedRestaurants.filter(
+          restaurant => !seenRestaurantIds.includes(restaurant.id)
+        );
+        if (unseenCached.length > 0) {
+          return this.shuffleArray(unseenCached);
+        }
+      }
+
+      // Last resort: return shuffled cached data (repeating restaurants)
+      return cachedRestaurants ? this.shuffleArray(cachedRestaurants) : this.getMockRestaurantsWithRandomOrder();
+    } catch (error) {
+      console.error("Error fetching fresh restaurants:", error);
       return this.getMockRestaurantsWithRandomOrder();
     }
   }

@@ -176,14 +176,6 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
         </Swiper>
       </View>
 
-      {/* Action Buttons (Optional - users can swipe or tap these) */}
-      <View style={styles.actionButtons}>
-        <Text style={styles.actionButtonsText}>
-          {cardIndex < restaurants.length
-            ? `${restaurants.length - cardIndex} restaurants left`
-            : "All done!"}
-        </Text>
-      </View>
     </SafeAreaView>
   );
 };
@@ -237,14 +229,5 @@ const styles = StyleSheet.create({
     color: "#999",
     textAlign: "center",
     lineHeight: 24,
-  },
-  actionButtons: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    alignItems: "center",
-  },
-  actionButtonsText: {
-    fontSize: 14,
-    color: "#666",
   },
 });

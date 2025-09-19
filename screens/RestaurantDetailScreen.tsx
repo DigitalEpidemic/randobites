@@ -11,6 +11,7 @@ import {
   Linking,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Restaurant } from '../types/restaurant';
 import { RestaurantService } from '../services/restaurantService';
@@ -83,10 +84,54 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
     }
   };
 
-  const handleDirections = () => {
+  const openInMaps = (address: string) => {
+    const encodedAddress = encodeURIComponent(address);
+    const url = Platform.select({
+      ios: `maps:0,0?q=${encodedAddress}`,
+      android: `geo:0,0?q=${encodedAddress}`,
+    });
+
+    if (url) {
+      Linking.openURL(url).catch(() => {
+        Alert.alert('Error', 'Unable to open maps application');
+      });
+    }
+  };
+
+  const getDirections = (address: string) => {
+    const encodedAddress = encodeURIComponent(address);
+    const url = Platform.select({
+      ios: `maps:0,0?q=${encodedAddress}&dirflg=d`,
+      android: `google.navigation:q=${encodedAddress}`,
+    });
+
+    if (url) {
+      Linking.openURL(url).catch(() => {
+        Alert.alert('Error', 'Unable to open navigation application');
+      });
+    }
+  };
+
+  const handleMapOptions = () => {
     if (restaurant.address) {
-      const encodedAddress = encodeURIComponent(restaurant.address);
-      Linking.openURL(`maps://app?daddr=${encodedAddress}`);
+      Alert.alert(
+        'Map Options',
+        `Choose how to open ${restaurant.name}:`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'View in Maps',
+            onPress: () => openInMaps(restaurant.address!),
+          },
+          {
+            text: 'Get Directions',
+            onPress: () => getDirections(restaurant.address!),
+          },
+        ]
+      );
     } else {
       Alert.alert("Address Not Available", "This restaurant's address is not available for directions.");
     }
@@ -173,10 +218,10 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
             )}
 
             {restaurant.address && (
-              <TouchableOpacity style={styles.contactItem} onPress={handleDirections}>
+              <TouchableOpacity style={styles.contactItem} onPress={handleMapOptions}>
                 <Text style={styles.contactLabel}>Address</Text>
                 <Text style={styles.contactValue}>{restaurant.address}</Text>
-                <Text style={styles.contactAction}>Tap for directions →</Text>
+                <Text style={styles.contactAction}>Tap for map options →</Text>
               </TouchableOpacity>
             )}
 

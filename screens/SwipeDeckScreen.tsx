@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   Alert,
   Dimensions,
@@ -7,11 +7,13 @@ import {
   StyleSheet,
   Text,
   View,
+  ActivityIndicator,
 } from "react-native";
 import Swiper from "react-native-deck-swiper";
 import { RestaurantCard } from "../components/RestaurantCard";
-import { mockRestaurants } from "../data/mockRestaurants";
 import { Restaurant } from "../types/restaurant";
+import { LocationService } from "../services/locationService";
+import { RestaurantService } from "../services/restaurantService";
 
 interface SwipeDeckScreenProps {
   navigation: any; // We'll type this properly when we set up navigation
@@ -22,9 +24,54 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
   navigation,
 }) => {
-  const [restaurants] = useState<Restaurant[]>(mockRestaurants);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [cardIndex, setCardIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const swiperRef = useRef<Swiper<Restaurant>>(null);
+
+  // Fetch nearby restaurants on component mount
+  useEffect(() => {
+    fetchNearbyRestaurants();
+  }, []);
+
+  const fetchNearbyRestaurants = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Get user's current location
+      const location = await LocationService.getCurrentLocation();
+
+      if (!location) {
+        throw new Error('Unable to get your location. Please enable location services.');
+      }
+
+      // Fetch nearby restaurants
+      const nearbyRestaurants = await RestaurantService.fetchNearbyRestaurants(
+        location,
+        5000, // 5km radius
+        20    // max 20 restaurants
+      );
+
+      if (nearbyRestaurants.length === 0) {
+        throw new Error('No restaurants found in your area. Please try again later.');
+      }
+
+      setRestaurants(nearbyRestaurants);
+      setCardIndex(0); // Reset card index
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load restaurants';
+      setError(errorMessage);
+      console.error('Error fetching restaurants:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const retryFetchRestaurants = () => {
+    fetchNearbyRestaurants();
+  };
 
   // Handle when user swipes left (dismiss)
   const onSwipedLeft = (cardIndex: number) => {
@@ -45,13 +92,16 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
   const onSwipedAll = () => {
     Alert.alert(
       "No more restaurants!",
-      "You've seen all available restaurants. Check back later for more options!",
+      "Would you like to find more restaurants in your area?",
       [
         {
-          text: "OK",
+          text: "No thanks",
+          style: "cancel",
+        },
+        {
+          text: "Find more",
           onPress: () => {
-            // Reset the deck or navigate elsewhere
-            setCardIndex(0);
+            retryFetchRestaurants();
           },
         },
       ]
@@ -87,6 +137,26 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
     </View>
   );
 
+  const renderLoading = () => (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color="#4ECDC4" />
+      <Text style={styles.loadingText}>Finding restaurants near you...</Text>
+    </View>
+  );
+
+  const renderError = () => (
+    <View style={styles.errorContainer}>
+      <Text style={styles.errorText}>Oops!</Text>
+      <Text style={styles.errorSubtext}>{error}</Text>
+      <Text
+        style={styles.retryButton}
+        onPress={retryFetchRestaurants}
+      >
+        Tap to retry
+      </Text>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1a1a1a" />
@@ -99,81 +169,89 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
         </Text>
       </View>
 
-      {/* Swiper Container */}
+      {/* Content Container */}
       <View style={styles.swiperContainer}>
-        <Swiper
-          ref={swiperRef}
-          cards={restaurants}
-          renderCard={renderCard}
-          onSwiped={(cardIndex) => setCardIndex(cardIndex + 1)}
-          onSwipedLeft={onSwipedLeft}
-          onSwipedRight={onSwipedRight}
-          onSwipedAll={onSwipedAll}
-          onSwiping={onSwiping}
-          cardIndex={cardIndex}
-          backgroundColor="transparent"
-          stackSize={5}
-          animateOverlayLabelsOpacity
-          animateCardOpacity
-          swipeBackCard
-          disableBottomSwipe
-          disableTopSwipe
-          verticalSwipe={false}
-          cardVerticalMargin={0}
-          marginTop={0}
-          marginBottom={0}
-          // Swipe threshold (how far to swipe before card disappears)
-          swipeThreshold={screenWidth * 0.3}
-          // Overlay labels for visual feedback
-          overlayLabels={{
-            left: {
-              title: "PASS",
-              style: {
-                label: {
-                  backgroundColor: "#FF6B6B",
-                  borderColor: "#FF6B6B",
-                  color: "white",
-                  borderWidth: 1,
-                  fontSize: 24,
-                  fontWeight: "bold",
-                  padding: 10,
-                  borderRadius: 10,
-                },
-                wrapper: {
-                  flexDirection: "column",
-                  alignItems: "flex-end",
-                  justifyContent: "flex-start",
-                  marginTop: 30,
-                  marginLeft: -30,
-                },
-              },
-            },
-            right: {
-              title: "MATCH!",
-              style: {
-                label: {
-                  backgroundColor: "#4ECDC4",
-                  borderColor: "#4ECDC4",
-                  color: "white",
-                  borderWidth: 1,
-                  fontSize: 24,
-                  fontWeight: "bold",
-                  padding: 10,
-                  borderRadius: 10,
-                },
-                wrapper: {
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  justifyContent: "flex-start",
-                  marginTop: 30,
-                  marginLeft: 30,
+        {isLoading ? (
+          renderLoading()
+        ) : error ? (
+          renderError()
+        ) : restaurants.length > 0 ? (
+          <Swiper
+            ref={swiperRef}
+            cards={restaurants}
+            renderCard={renderCard}
+            onSwiped={(cardIndex) => setCardIndex(cardIndex + 1)}
+            onSwipedLeft={onSwipedLeft}
+            onSwipedRight={onSwipedRight}
+            onSwipedAll={onSwipedAll}
+            onSwiping={onSwiping}
+            cardIndex={cardIndex}
+            backgroundColor="transparent"
+            stackSize={5}
+            animateOverlayLabelsOpacity
+            animateCardOpacity
+            swipeBackCard
+            disableBottomSwipe
+            disableTopSwipe
+            verticalSwipe={false}
+            cardVerticalMargin={0}
+            marginTop={0}
+            marginBottom={0}
+            // Swipe threshold (how far to swipe before card disappears)
+            swipeThreshold={screenWidth * 0.3}
+            // Overlay labels for visual feedback
+            overlayLabels={{
+              left: {
+                title: "PASS",
+                style: {
+                  label: {
+                    backgroundColor: "#FF6B6B",
+                    borderColor: "#FF6B6B",
+                    color: "white",
+                    borderWidth: 1,
+                    fontSize: 24,
+                    fontWeight: "bold",
+                    padding: 10,
+                    borderRadius: 10,
+                  },
+                  wrapper: {
+                    flexDirection: "column",
+                    alignItems: "flex-end",
+                    justifyContent: "flex-start",
+                    marginTop: 30,
+                    marginLeft: -30,
+                  },
                 },
               },
-            },
-          }}
-        >
-          {renderNoMoreCards()}
-        </Swiper>
+              right: {
+                title: "MATCH!",
+                style: {
+                  label: {
+                    backgroundColor: "#4ECDC4",
+                    borderColor: "#4ECDC4",
+                    color: "white",
+                    borderWidth: 1,
+                    fontSize: 24,
+                    fontWeight: "bold",
+                    padding: 10,
+                    borderRadius: 10,
+                  },
+                  wrapper: {
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    justifyContent: "flex-start",
+                    marginTop: 30,
+                    marginLeft: 30,
+                  },
+                },
+              },
+            }}
+          >
+            {renderNoMoreCards()}
+          </Swiper>
+        ) : (
+          renderNoMoreCards()
+        )}
       </View>
 
     </SafeAreaView>
@@ -229,5 +307,56 @@ const styles = StyleSheet.create({
     color: "#999",
     textAlign: "center",
     lineHeight: 24,
+  },
+  loadingContainer: {
+    width: screenWidth * 0.9,
+    height: screenHeight * 0.7,
+    backgroundColor: "#2a2a2a",
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 40,
+    alignSelf: "center",
+  },
+  loadingText: {
+    fontSize: 18,
+    color: "#fff",
+    textAlign: "center",
+    marginTop: 20,
+  },
+  errorContainer: {
+    width: screenWidth * 0.9,
+    height: screenHeight * 0.7,
+    backgroundColor: "#2a2a2a",
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 40,
+    alignSelf: "center",
+  },
+  errorText: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#FF6B6B",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  errorSubtext: {
+    fontSize: 16,
+    color: "#999",
+    textAlign: "center",
+    lineHeight: 24,
+    marginBottom: 30,
+  },
+  retryButton: {
+    fontSize: 18,
+    color: "#4ECDC4",
+    textAlign: "center",
+    fontWeight: "bold",
+    backgroundColor: "#333",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    overflow: "hidden",
   },
 });

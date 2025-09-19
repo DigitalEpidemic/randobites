@@ -17,29 +17,53 @@ interface GeoapifyResponse {
 interface GeoapifyFeature {
   type: string;
   properties: {
+    feature_type?: string;
     name?: string;
     categories: string[];
-    details?: string[];
+    catering?: {
+      cuisine?: string;
+    };
     datasource: {
       sourcename: string;
+      attribution?: string;
+      license?: string;
+      url?: string;
       raw: {
+        name?: string;
+        osm_id?: number;
+        amenity?: string;
         cuisine?: string;
+        osm_type?: string;
         phone?: string;
         website?: string;
         opening_hours?: string;
-        "addr:street"?: string;
-        "addr:housenumber"?: string;
-        "addr:city"?: string;
-        "addr:postcode"?: string;
-        "addr:state"?: string;
-        "addr:country"?: string;
-        "contact:phone"?: string;
-        telephone?: string;
         [key: string]: any; // Allow additional properties
       };
     };
+    housenumber?: string;
+    street?: string;
+    city?: string;
+    county?: string;
+    state?: string;
+    postcode?: string;
+    country?: string;
+    country_code?: string;
+    formatted?: string;
+    address_line1?: string;
+    address_line2?: string;
+    lat?: number;
+    lon?: number;
     distance?: number;
     place_id: string;
+    timezone?: {
+      name: string;
+      offset_STD: string;
+      offset_STD_seconds: number;
+      offset_DST: string;
+      offset_DST_seconds: number;
+      abbreviation_STD: string;
+      abbreviation_DST: string;
+    };
   };
   geometry: {
     type: string;
@@ -330,23 +354,27 @@ export class RestaurantService {
     const props = feature.properties;
     const raw = props.datasource?.raw || {};
 
-    // Extract comprehensive address
-    const addressComponents = [
-      raw["addr:housenumber"],
-      raw["addr:street"],
-      raw["addr:city"],
-      raw["addr:state"],
-      raw["addr:postcode"],
-      raw["addr:country"]
-    ].filter(Boolean);
+    // Extract address from the new API format
+    let address: string | undefined;
+    if (props.formatted) {
+      address = props.formatted;
+    } else if (props.address_line1 && props.address_line2) {
+      address = `${props.address_line1}, ${props.address_line2}`;
+    } else {
+      // Build address from individual components
+      const addressComponents = [
+        props.housenumber,
+        props.street,
+        props.city,
+        props.state,
+        props.postcode,
+        props.country
+      ].filter(Boolean);
+      address = addressComponents.length > 0 ? addressComponents.join(", ") : undefined;
+    }
 
-    const address = addressComponents.length > 0 ? addressComponents.join(", ") : undefined;
-
-    // Extract phone number with better handling
-    const phoneNumber = raw.phone || raw["contact:phone"] || raw.telephone || undefined;
-
-    // Extract website (for future use)
-    // const website = raw.website || raw["contact:website"] || undefined;
+    // Extract phone number
+    const phoneNumber = raw.phone || undefined;
 
     // Extract opening hours
     const openingHours = raw.opening_hours || undefined;
@@ -385,22 +413,34 @@ export class RestaurantService {
       featureLocation
     );
 
-    // Extract address components
-    const raw = feature.properties.datasource.raw;
-    const addressParts = [
-      raw["addr:housenumber"],
-      raw["addr:street"],
-      raw["addr:city"],
-      raw["addr:postcode"],
-    ].filter(Boolean);
-    const address = addressParts.length > 0 ? addressParts.join(" ") : undefined;
+    const props = feature.properties;
+    const raw = props.datasource?.raw || {};
+
+    // Extract address from the new API format (same logic as detailed method)
+    let address: string | undefined;
+    if (props.formatted) {
+      address = props.formatted;
+    } else if (props.address_line1 && props.address_line2) {
+      address = `${props.address_line1}, ${props.address_line2}`;
+    } else {
+      // Build address from individual components
+      const addressComponents = [
+        props.housenumber,
+        props.street,
+        props.city,
+        props.state,
+        props.postcode,
+        props.country
+      ].filter(Boolean);
+      address = addressComponents.length > 0 ? addressComponents.join(", ") : undefined;
+    }
 
     // Generate a realistic rating
     const rating = Math.round((3.5 + Math.random() * 1.3) * 10) / 10; // Between 3.5-4.8
 
     return {
-      id: feature.properties.place_id,
-      name: feature.properties.name || "Restaurant",
+      id: props.place_id,
+      name: props.name || "Restaurant",
       cuisine: this.extractCuisineFromGeoapify(feature),
       image: this.getCuisineSpecificImage(
         this.extractCuisineFromGeoapify(feature)
@@ -420,11 +460,20 @@ export class RestaurantService {
    * Extract cuisine type from Geoapify feature
    */
   private static extractCuisineFromGeoapify(feature: GeoapifyFeature): string {
-    // Check if there's a specific cuisine in the raw data
+    // Check if there's a specific cuisine in the catering object (new API format)
+    const cateringCuisine = feature.properties.catering?.cuisine;
+    if (cateringCuisine) {
+      console.log(
+        `Found catering cuisine: ${cateringCuisine} for ${feature.properties.name}`
+      );
+      return this.normalizeCuisine(cateringCuisine);
+    }
+
+    // Check if there's a specific cuisine in the raw data (fallback)
     const rawCuisine = feature.properties.datasource.raw.cuisine;
     if (rawCuisine) {
       console.log(
-        `Found specific cuisine: ${rawCuisine} for ${feature.properties.name}`
+        `Found raw cuisine: ${rawCuisine} for ${feature.properties.name}`
       );
       return this.normalizeCuisine(rawCuisine);
     }

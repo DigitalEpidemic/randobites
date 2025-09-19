@@ -115,12 +115,24 @@ export class RestaurantService {
 
       const data: GeoapifyResponse = await response.json();
 
+      // Log raw API response for debugging
+      console.log("=== GEOAPIFY API RESPONSE ===");
+      console.log("Total features returned:", data.features.length);
+
       // Convert Geoapify features to restaurants
       const restaurants = data.features
         .filter((feature) => feature.properties.name) // Only include places with names
-        .map((feature) =>
-          this.convertGeoapifyFeatureToRestaurant(feature, location)
-        );
+        .map((feature, index) => {
+          console.log(`\n--- Restaurant ${index + 1} RAW DATA ---`);
+          console.log("Full feature object:", JSON.stringify(feature, null, 2));
+
+          const restaurant = this.convertGeoapifyFeatureToRestaurant(feature, location);
+
+          console.log(`\n--- Restaurant ${index + 1} CONVERTED DATA ---`);
+          console.log("Converted restaurant object:", JSON.stringify(restaurant, null, 2));
+
+          return restaurant;
+        });
 
       return restaurants;
     } catch (error) {
@@ -152,10 +164,7 @@ export class RestaurantService {
       raw["addr:city"],
       raw["addr:postcode"],
     ].filter(Boolean);
-    const address =
-      addressParts.length > 0
-        ? addressParts.join(" ")
-        : "Address not available";
+    const address = addressParts.length > 0 ? addressParts.join(" ") : undefined;
 
     // Generate a realistic rating
     const rating = Math.round((3.5 + Math.random() * 1.3) * 10) / 10; // Between 3.5-4.8
@@ -171,7 +180,7 @@ export class RestaurantService {
       distance: distance,
       description: this.generateGeoapifyDescription(feature),
       address: address,
-      phoneNumber: raw.phone,
+      phoneNumber: raw.phone || undefined,
       priceRange: this.generateRandomPriceRange(),
       isOpen: undefined, // Geoapify opening hours are complex to parse
       hours: raw.opening_hours,
@@ -501,7 +510,8 @@ export class RestaurantService {
         return null;
       }
 
-      console.log("Using cached restaurant data");
+      console.log("\n=== USING CACHED RESTAURANT DATA ===");
+      console.log("Cached restaurants data:", JSON.stringify(cachedData.restaurants, null, 2));
       return cachedData.restaurants;
     } catch (error) {
       console.error("Error reading cache:", error);
@@ -547,6 +557,7 @@ export class RestaurantService {
    * Fallback method to return mock restaurants in random order
    */
   private static getMockRestaurantsWithRandomOrder(): Restaurant[] {
+    console.log("\n=== USING MOCK RESTAURANT DATA ===");
     const mockRestaurants = [
       {
         id: "1",
@@ -670,6 +681,7 @@ export class RestaurantService {
       },
     ];
 
+    console.log("Mock restaurants data:", JSON.stringify(mockRestaurants, null, 2));
     return this.shuffleArray(mockRestaurants);
   }
 }

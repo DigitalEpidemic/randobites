@@ -10,6 +10,7 @@ import {
   SafeAreaView,
   StatusBar,
   Linking,
+  Alert,
 } from 'react-native';
 import { Restaurant } from '../types/restaurant';
 
@@ -22,7 +23,6 @@ interface RestaurantDetailScreenProps {
   navigation: any;
 }
 
-const { width: screenWidth } = Dimensions.get('window');
 
 export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
   route,
@@ -47,6 +47,8 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
   const handleCall = () => {
     if (restaurant.phoneNumber) {
       Linking.openURL(`tel:${restaurant.phoneNumber}`);
+    } else {
+      Alert.alert("Phone Not Available", "This restaurant's phone number is not available.");
     }
   };
 
@@ -54,6 +56,8 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
     if (restaurant.address) {
       const encodedAddress = encodeURIComponent(restaurant.address);
       Linking.openURL(`maps://app?daddr=${encodedAddress}`);
+    } else {
+      Alert.alert("Address Not Available", "This restaurant's address is not available for directions.");
     }
   };
 
@@ -156,12 +160,36 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
 
           {/* Action Buttons */}
           <View style={styles.actionSection}>
-            <TouchableOpacity style={styles.actionButton} onPress={handleCall}>
-              <Text style={styles.actionButtonText}>Call Restaurant</Text>
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                !restaurant.phoneNumber && styles.disabledButton
+              ]}
+              onPress={handleCall}
+              disabled={!restaurant.phoneNumber}
+            >
+              <Text style={[
+                styles.actionButtonText,
+                !restaurant.phoneNumber && styles.disabledButtonText
+              ]}>
+                {restaurant.phoneNumber ? 'Call Restaurant' : 'Phone Not Available'}
+              </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionButton} onPress={handleDirections}>
-              <Text style={styles.actionButtonText}>Get Directions</Text>
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                !restaurant.address && styles.disabledButton
+              ]}
+              onPress={handleDirections}
+              disabled={!restaurant.address}
+            >
+              <Text style={[
+                styles.actionButtonText,
+                !restaurant.address && styles.disabledButtonText
+              ]}>
+                {restaurant.address ? 'Get Directions' : 'Address Not Available'}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -335,6 +363,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  disabledButton: {
+    backgroundColor: '#666',
+    opacity: 0.6,
+  },
+  disabledButtonText: {
+    color: '#ccc',
   },
   bottomSection: {
     alignItems: 'center',

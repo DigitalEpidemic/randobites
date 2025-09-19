@@ -1,18 +1,19 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  Dimensions,
   ImageBackground,
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
   Linking,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Restaurant } from '../types/restaurant';
+import { RestaurantService } from '../services/restaurantService';
 
 interface RestaurantDetailScreenProps {
   route: {
@@ -28,7 +29,37 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
   route,
   navigation,
 }) => {
-  const { restaurant } = route.params;
+  const { restaurant: initialRestaurant } = route.params;
+  const [restaurant, setRestaurant] = useState<Restaurant>(initialRestaurant);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+
+  // Fetch detailed restaurant information when component mounts
+  useEffect(() => {
+    const fetchDetails = async () => {
+      // Only fetch details if we don't already have phone and address
+      if (!restaurant.phoneNumber || !restaurant.address) {
+        setIsLoadingDetails(true);
+        try {
+          const detailedRestaurant = await RestaurantService.fetchRestaurantDetails(restaurant.id);
+          if (detailedRestaurant) {
+            // Merge detailed data with existing data, preserving distance and other computed fields
+            setRestaurant(prev => ({
+              ...prev,
+              address: detailedRestaurant.address || prev.address,
+              phoneNumber: detailedRestaurant.phoneNumber || prev.phoneNumber,
+              hours: detailedRestaurant.hours || prev.hours,
+            }));
+          }
+        } catch (error) {
+          console.error('Error fetching restaurant details:', error);
+        } finally {
+          setIsLoadingDetails(false);
+        }
+      }
+    };
+
+    fetchDetails();
+  }, [restaurant.id, restaurant.phoneNumber, restaurant.address]);
 
   const renderStars = (rating: number) => {
     const stars = [];
@@ -133,6 +164,13 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
           {/* Contact Information */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Contact & Location</Text>
+
+            {isLoadingDetails && (
+              <View style={styles.loadingIndicator}>
+                <ActivityIndicator size="small" color="#4ECDC4" />
+                <Text style={styles.loadingText}>Loading details...</Text>
+              </View>
+            )}
 
             {restaurant.address && (
               <TouchableOpacity style={styles.contactItem} onPress={handleDirections}>
@@ -370,6 +408,19 @@ const styles = StyleSheet.create({
   },
   disabledButtonText: {
     color: '#ccc',
+  },
+  loadingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    backgroundColor: '#333',
+    borderRadius: 8,
+    marginBottom: 15,
+  },
+  loadingText: {
+    color: '#ccc',
+    marginLeft: 10,
+    fontSize: 14,
   },
   bottomSection: {
     alignItems: 'center',

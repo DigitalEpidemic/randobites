@@ -31,6 +31,11 @@ interface GeoapifyFeature {
         "addr:housenumber"?: string;
         "addr:city"?: string;
         "addr:postcode"?: string;
+        "addr:state"?: string;
+        "addr:country"?: string;
+        "contact:phone"?: string;
+        telephone?: string;
+        [key: string]: any; // Allow additional properties
       };
     };
     distance?: number;
@@ -119,7 +124,7 @@ export class RestaurantService {
       console.log("=== GEOAPIFY API RESPONSE ===");
       console.log("Total features returned:", data.features.length);
 
-      // Convert Geoapify features to restaurants
+      // Convert Geoapify features to restaurants (basic info only)
       const restaurants = data.features
         .filter((feature) => feature.properties.name) // Only include places with names
         .map((feature, index) => {
@@ -142,7 +147,142 @@ export class RestaurantService {
   }
 
   /**
-   * Convert Geoapify feature to our Restaurant interface
+   * Fetch detailed restaurant information when user selects a restaurant
+   */
+  static async fetchRestaurantDetails(restaurantId: string): Promise<Restaurant | null> {
+    try {
+      if (!GEOAPIFY_API_KEY) {
+        console.warn("Geoapify API key not configured, cannot fetch details");
+        return null;
+      }
+
+      const detailsUrl = `https://api.geoapify.com/v2/place-details?id=${restaurantId}&apiKey=${GEOAPIFY_API_KEY}`;
+
+      console.log(`\n=== FETCHING RESTAURANT DETAILS ===`);
+      console.log(`Place ID: ${restaurantId}`);
+
+      const response = await fetch(detailsUrl);
+
+      if (!response.ok) {
+        console.warn(`Place Details API error: ${response.status}`);
+        return null;
+      }
+
+      const detailsData = await response.json();
+      console.log("Place Details API response:", JSON.stringify(detailsData, null, 2));
+
+      if (detailsData.features && detailsData.features.length > 0) {
+        // For details, we don't need user location for distance calculation since we already have it
+        const dummyLocation = { latitude: 0, longitude: 0 };
+        const detailedRestaurant = this.convertDetailedFeatureToRestaurant(detailsData.features[0], dummyLocation);
+
+        console.log("Detailed restaurant data:", JSON.stringify(detailedRestaurant, null, 2));
+        return detailedRestaurant;
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error fetching restaurant details:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Fetch detailed place information using Geoapify Place Details API (internal method)
+   */
+  private static async fetchPlaceDetails(
+    feature: GeoapifyFeature,
+    userLocation: LocationCoordinates
+  ): Promise<Restaurant> {
+    try {
+      const placeId = feature.properties.place_id;
+      const detailsUrl = `https://api.geoapify.com/v2/place-details?id=${placeId}&apiKey=${GEOAPIFY_API_KEY}`;
+
+      console.log(`Fetching details for place ID: ${placeId}`);
+
+      const response = await fetch(detailsUrl);
+
+      if (!response.ok) {
+        console.warn(`Place Details API error: ${response.status}, falling back to basic data`);
+        return this.convertGeoapifyFeatureToRestaurant(feature, userLocation);
+      }
+
+      const detailsData = await response.json();
+      console.log("Place Details API response:", JSON.stringify(detailsData, null, 2));
+
+      // Use detailed data if available, otherwise fall back to basic conversion
+      if (detailsData.features && detailsData.features.length > 0) {
+        return this.convertDetailedFeatureToRestaurant(detailsData.features[0], userLocation);
+      } else {
+        return this.convertGeoapifyFeatureToRestaurant(feature, userLocation);
+      }
+    } catch (error) {
+      console.error("Error fetching place details:", error);
+      // Fall back to basic conversion if details fetch fails
+      return this.convertGeoapifyFeatureToRestaurant(feature, userLocation);
+    }
+  }
+
+  /**
+   * Convert detailed Geoapify feature to our Restaurant interface
+   */
+  private static convertDetailedFeatureToRestaurant(
+    feature: GeoapifyFeature,
+    userLocation: LocationCoordinates
+  ): Restaurant {
+    const [longitude, latitude] = feature.geometry.coordinates;
+    const featureLocation: LocationCoordinates = { latitude, longitude };
+
+    const distance = LocationService.calculateDistance(
+      userLocation,
+      featureLocation
+    );
+
+    const props = feature.properties;
+    const raw = props.datasource?.raw || {};
+
+    // Extract comprehensive address
+    const addressComponents = [
+      raw["addr:housenumber"],
+      raw["addr:street"],
+      raw["addr:city"],
+      raw["addr:state"],
+      raw["addr:postcode"],
+      raw["addr:country"]
+    ].filter(Boolean);
+
+    const address = addressComponents.length > 0 ? addressComponents.join(", ") : undefined;
+
+    // Extract phone number with better handling
+    const phoneNumber = raw.phone || raw["contact:phone"] || raw.telephone || undefined;
+
+    // Extract website (for future use)
+    // const website = raw.website || raw["contact:website"] || undefined;
+
+    // Extract opening hours
+    const openingHours = raw.opening_hours || undefined;
+
+    // Generate a realistic rating
+    const rating = Math.round((3.5 + Math.random() * 1.3) * 10) / 10;
+
+    return {
+      id: props.place_id,
+      name: props.name || "Restaurant",
+      cuisine: this.extractCuisineFromGeoapify(feature),
+      image: this.getCuisineSpecificImage(this.extractCuisineFromGeoapify(feature)),
+      rating: rating,
+      distance: distance,
+      description: this.generateGeoapifyDescription(feature),
+      address: address,
+      phoneNumber: phoneNumber,
+      priceRange: this.generateRandomPriceRange(),
+      isOpen: undefined, // Could be determined from opening_hours if needed
+      hours: openingHours,
+    };
+  }
+
+  /**
+   * Convert Geoapify feature to our Restaurant interface (fallback method)
    */
   private static convertGeoapifyFeatureToRestaurant(
     feature: GeoapifyFeature,

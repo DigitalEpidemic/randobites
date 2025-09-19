@@ -262,7 +262,7 @@ export class RestaurantService {
   /**
    * Fetch detailed restaurant information when user selects a restaurant
    */
-  static async fetchRestaurantDetails(restaurantId: string): Promise<Restaurant | null> {
+  static async fetchRestaurantDetails(restaurantId: string, userLocation?: LocationCoordinates): Promise<Restaurant | null> {
     try {
       if (!GEOAPIFY_API_KEY) {
         console.warn("Geoapify API key not configured, cannot fetch details");
@@ -285,9 +285,9 @@ export class RestaurantService {
       console.log("Place Details API response:", JSON.stringify(detailsData, null, 2));
 
       if (detailsData.features && detailsData.features.length > 0) {
-        // For details, we don't need user location for distance calculation since we already have it
-        const dummyLocation = { latitude: 0, longitude: 0 };
-        const detailedRestaurant = this.convertDetailedFeatureToRestaurant(detailsData.features[0], dummyLocation);
+        // Use provided user location or fallback to dummy location if not available
+        const locationForDistance = userLocation || { latitude: 0, longitude: 0 };
+        const detailedRestaurant = this.convertDetailedFeatureToRestaurant(detailsData.features[0], locationForDistance);
 
         console.log("Detailed restaurant data:", JSON.stringify(detailedRestaurant, null, 2));
         return detailedRestaurant;

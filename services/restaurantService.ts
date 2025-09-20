@@ -1075,12 +1075,12 @@ export class RestaurantService {
   private static getImageFromRestaurantName(name: string): string | null {
     const nameToImageMap: { [key: string]: string } = {
       // Generic name patterns only - no specific brands
-      "shawarma": "https://images.unsplash.com/photo-1554200876-56c2f25224fa?w=400&h=300&fit=crop", // Middle Eastern
+      "shawarma": "https://images.unsplash.com/photo-1638537125835-82acb38d3531?w=400&h=300&fit=crop", // Middle Eastern
       "coffee shop": "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400&h=300&fit=crop", // Coffee
       "cafe": "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&h=300&fit=crop", // Cafe
-      "bakery": "https://images.unsplash.com/photo-1571997478779-2adcbbe9ab2f?w=400&h=300&fit=crop", // Bakery
+      "bakery": "https://plus.unsplash.com/premium_photo-1665669263531-cdcbe18e7fe4?w=400&h=300&fit=crop", // Bakery
       "eatery": "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=400&h=300&fit=crop", // General food
-      "lounge": "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400&h=300&fit=crop", // Upscale dining
+      "lounge": "https://plus.unsplash.com/premium_photo-1661962950572-61c3b7b4d5ba?w=400&h=300&fit=crop", // Upscale dining
     };
 
     for (const [pattern, imageUrl] of Object.entries(nameToImageMap)) {

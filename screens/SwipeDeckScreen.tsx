@@ -81,7 +81,7 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
         nearbyRestaurants = await RestaurantService.fetchFreshRestaurants(
           location,
           maxRadiusMeters, // Use user's preferred radius
-          20,   // max 20 restaurants
+          500,   // max 500 restaurants
           seenRestaurantIds
         );
       } else {
@@ -89,7 +89,7 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
         nearbyRestaurants = await RestaurantService.fetchNearbyRestaurants(
           location,
           maxRadiusMeters, // Use user's preferred radius
-          20    // max 20 restaurants
+          500    // max 500 restaurants
         );
       }
 

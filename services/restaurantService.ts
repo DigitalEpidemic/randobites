@@ -85,7 +85,7 @@ export class RestaurantService {
   static async fetchNearbyRestaurants(
     location: LocationCoordinates,
     radiusInMeters: number = 5000, // Default 5km radius
-    maxResults: number = 20,
+    maxResults: number = 500,
     forceRefresh: boolean = false // New parameter to force fresh data
   ): Promise<Restaurant[]> {
     try {
@@ -130,7 +130,7 @@ export class RestaurantService {
       const restaurants = await this.fetchFromGeoapify(
         location,
         radiusInMeters,
-        maxResults
+        Math.min(maxResults, 500) // Respect API limit of 500
       );
 
       if (restaurants.length > 0) {
@@ -170,10 +170,11 @@ export class RestaurantService {
   }
 
   /**
-   * Fetch restaurants using cumulative ring-based approach with multiple offset centers
-   * Zone A (0-10km): one call from original point
-   * Zone B (10-20km): 6 offset centers at ~15km, each with 10km radius
-   * Zone C (20-30km): 6 offset centers at ~25km, each with 10km radius
+   * Fetch restaurants using cumulative ring-based approach with smart offset centers
+   * For each ring, try one call from center first. Only use offset centers if API returns exactly 500 (truncated).
+   * Zone A (0-10km): single call from original point
+   * Zone B (10-20km): center call first, then 6 offset centers at 15km if truncated
+   * Zone C (20-30km): center call first, then 6 offset centers at 25km if truncated
    */
   private static async fetchCumulativeRestaurants(
     location: LocationCoordinates,
@@ -201,7 +202,7 @@ export class RestaurantService {
       console.log('Fetching Zone A (0-10km) from original center');
       const zoneARestaurants = await this.fetchFreshRestaurants(location, 10000, maxResults, Array.from(seenIds));
 
-      // Add to results and seenIds
+      // Add all Zone A restaurants to results and seenIds
       for (const restaurant of zoneARestaurants) {
         if (!seenIds.has(restaurant.id)) {
           seenIds.add(restaurant.id);
@@ -211,53 +212,99 @@ export class RestaurantService {
       console.log(`Zone A: Added ${zoneARestaurants.length} restaurants`);
     }
 
-    // Zone B (10-20km): 6 offset centers at ~15km
+    // Zone B (10-20km): try center first, then offset centers if truncated
     if (radiusInMeters >= 20000) {
-      console.log('Fetching Zone B (10-20km) using 6 offset centers at 15km');
-      const offsetCenters = this.getOffsetSearchCenters(location, 15);
+      console.log('Fetching Zone B (10-20km)');
 
-      for (const [index, center] of offsetCenters.entries()) {
-        console.log(`Zone B center ${index + 1}: (${center.latitude.toFixed(4)}, ${center.longitude.toFixed(4)})`);
+      // First try a call from the original center with 20km radius
+      const centerResults = await this.fetchFreshRestaurants(location, 20000, maxResults, Array.from(seenIds));
 
-        // Fetch from this offset center with 10km radius
-        const centerRestaurants = await this.fetchFreshRestaurants(center, 10000, maxResults, Array.from(seenIds));
+      // Filter to only restaurants in the 10-20km ring
+      const zoneBFromCenter = this.filterRestaurantsByRing(centerResults, location, 10000, 20000);
 
-        // Filter to only restaurants in the 10-20km ring from original location
-        const ringRestaurants = this.filterRestaurantsByRing(centerRestaurants, location, 10000, 20000);
-
-        // Add to results and seenIds
-        for (const restaurant of ringRestaurants) {
-          if (!seenIds.has(restaurant.id)) {
-            seenIds.add(restaurant.id);
-            allRestaurants.push(restaurant);
-          }
+      // Add center results to main collection
+      for (const restaurant of zoneBFromCenter) {
+        if (!seenIds.has(restaurant.id)) {
+          seenIds.add(restaurant.id);
+          allRestaurants.push(restaurant);
         }
-        console.log(`Zone B center ${index + 1}: ${centerRestaurants.length} total, ${ringRestaurants.length} in ring, ${ringRestaurants.filter(r => !seenIds.has(r.id)).length} new`);
+      }
+
+      console.log(`Zone B center call: ${centerResults.length} total, ${zoneBFromCenter.length} in ring`);
+
+      // If API returned exactly 500 results, assume truncation and use offset centers
+      if (centerResults.length === 500) {
+        console.log('Zone B appears truncated (500 results), using offset centers for additional coverage');
+        const offsetCenters = this.getOffsetSearchCenters(location, 15);
+
+        for (const [index, center] of offsetCenters.entries()) {
+          console.log(`Zone B offset center ${index + 1}: (${center.latitude.toFixed(4)}, ${center.longitude.toFixed(4)})`);
+
+          // Fetch from this offset center with 10km radius
+          const centerRestaurants = await this.fetchFreshRestaurants(center, 10000, maxResults, Array.from(seenIds));
+
+          // Filter to only restaurants in the 10-20km ring from original location
+          const ringRestaurants = this.filterRestaurantsByRing(centerRestaurants, location, 10000, 20000);
+
+          // Add to results and seenIds
+          for (const restaurant of ringRestaurants) {
+            if (!seenIds.has(restaurant.id)) {
+              seenIds.add(restaurant.id);
+              allRestaurants.push(restaurant);
+            }
+          }
+          console.log(`Zone B offset ${index + 1}: ${centerRestaurants.length} total, ${ringRestaurants.length} in ring, ${ringRestaurants.filter(r => !seenIds.has(r.id)).length} new`);
+        }
+      } else {
+        console.log(`Zone B appears complete (${centerResults.length} < 500 results), skipping offset centers`);
       }
     }
 
-    // Zone C (20-30km): 6 offset centers at ~25km
+    // Zone C (20-30km): try center first, then offset centers if truncated
     if (radiusInMeters >= 30000) {
-      console.log('Fetching Zone C (20-30km) using 6 offset centers at 25km');
-      const offsetCenters = this.getOffsetSearchCenters(location, 25);
+      console.log('Fetching Zone C (20-30km)');
 
-      for (const [index, center] of offsetCenters.entries()) {
-        console.log(`Zone C center ${index + 1}: (${center.latitude.toFixed(4)}, ${center.longitude.toFixed(4)})`);
+      // First try a call from the original center with 30km radius
+      const centerResults = await this.fetchFreshRestaurants(location, 30000, maxResults, Array.from(seenIds));
 
-        // Fetch from this offset center with 10km radius
-        const centerRestaurants = await this.fetchFreshRestaurants(center, 10000, maxResults, Array.from(seenIds));
+      // Filter to only restaurants in the 20-30km ring
+      const zoneCFromCenter = this.filterRestaurantsByRing(centerResults, location, 20000, 30000);
 
-        // Filter to only restaurants in the 20-30km ring from original location
-        const ringRestaurants = this.filterRestaurantsByRing(centerRestaurants, location, 20000, 30000);
-
-        // Add to results and seenIds
-        for (const restaurant of ringRestaurants) {
-          if (!seenIds.has(restaurant.id)) {
-            seenIds.add(restaurant.id);
-            allRestaurants.push(restaurant);
-          }
+      // Add center results to main collection
+      for (const restaurant of zoneCFromCenter) {
+        if (!seenIds.has(restaurant.id)) {
+          seenIds.add(restaurant.id);
+          allRestaurants.push(restaurant);
         }
-        console.log(`Zone C center ${index + 1}: ${centerRestaurants.length} total, ${ringRestaurants.length} in ring, ${ringRestaurants.filter(r => !seenIds.has(r.id)).length} new`);
+      }
+
+      console.log(`Zone C center call: ${centerResults.length} total, ${zoneCFromCenter.length} in ring`);
+
+      // If API returned exactly 500 results, assume truncation and use offset centers
+      if (centerResults.length === 500) {
+        console.log('Zone C appears truncated (500 results), using offset centers for additional coverage');
+        const offsetCenters = this.getOffsetSearchCenters(location, 25);
+
+        for (const [index, center] of offsetCenters.entries()) {
+          console.log(`Zone C offset center ${index + 1}: (${center.latitude.toFixed(4)}, ${center.longitude.toFixed(4)})`);
+
+          // Fetch from this offset center with 10km radius
+          const centerRestaurants = await this.fetchFreshRestaurants(center, 10000, maxResults, Array.from(seenIds));
+
+          // Filter to only restaurants in the 20-30km ring from original location
+          const ringRestaurants = this.filterRestaurantsByRing(centerRestaurants, location, 20000, 30000);
+
+          // Add to results and seenIds
+          for (const restaurant of ringRestaurants) {
+            if (!seenIds.has(restaurant.id)) {
+              seenIds.add(restaurant.id);
+              allRestaurants.push(restaurant);
+            }
+          }
+          console.log(`Zone C offset ${index + 1}: ${centerRestaurants.length} total, ${ringRestaurants.length} in ring, ${ringRestaurants.filter(r => !seenIds.has(r.id)).length} new`);
+        }
+      } else {
+        console.log(`Zone C appears complete (${centerResults.length} < 500 results), skipping offset centers`);
       }
     }
 
@@ -354,7 +401,7 @@ export class RestaurantService {
   static async fetchFreshRestaurants(
     location: LocationCoordinates,
     radiusInMeters: number = 5000,
-    maxResults: number = 20,
+    maxResults: number = 500,
     seenRestaurantIds: string[] = []
   ): Promise<Restaurant[]> {
     try {
@@ -370,7 +417,7 @@ export class RestaurantService {
       let restaurants = await this.fetchFromGeoapify(
         location,
         radiusInMeters, // Respect user's max radius setting
-        maxResults * 3 // Fetch more to ensure we have enough after filtering
+        Math.min(maxResults * 3, 500) // Fetch more to ensure we have enough after filtering, up to API limit
       );
 
       // Filter out already seen restaurants and blacklisted ones

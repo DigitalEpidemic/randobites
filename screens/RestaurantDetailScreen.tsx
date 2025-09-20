@@ -221,7 +221,7 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
               </View>
 
               <View style={styles.distanceContainer}>
-                <Text style={styles.distanceText}>{calculateDistance().toFixed(1)} mi away</Text>
+                <Text style={styles.distanceText}>{calculateDistance().toFixed(1)} km away</Text>
                 {restaurant.priceRange && (
                   <Text style={styles.priceRange}>{restaurant.priceRange}</Text>
                 )}

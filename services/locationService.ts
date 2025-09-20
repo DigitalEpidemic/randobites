@@ -50,12 +50,13 @@ export class LocationService {
 
   /**
    * Calculate distance between two coordinates using the Haversine formula
+   * Returns distance in kilometers
    */
   static calculateDistance(
     coord1: LocationCoordinates,
     coord2: LocationCoordinates
   ): number {
-    const R = 3959; // Earth's radius in miles
+    const R = 6371; // Earth's radius in kilometers
     const dLat = this.toRadians(coord2.latitude - coord1.latitude);
     const dLon = this.toRadians(coord2.longitude - coord1.longitude);
 

@@ -92,7 +92,7 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
             </View>
 
             <View style={styles.distanceContainer}>
-              <Text style={styles.distance}>{calculateDistance().toFixed(1)} mi</Text>
+              <Text style={styles.distance}>{calculateDistance().toFixed(1)} km</Text>
               {restaurant.priceRange && (
                 <Text style={styles.priceRange}>{restaurant.priceRange}</Text>
               )}

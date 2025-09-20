@@ -10,10 +10,7 @@ jest.mock('../../services/settingsService', () => ({
     saveSettings: jest.fn(),
   },
   DEFAULT_SETTINGS: {
-    searchRadius: 5000,
-    maxResults: 50,
-    enableHapticFeedback: true,
-    autoRefreshInterval: 30,
+    maxRadius: 5,
   },
 }));
 
@@ -32,6 +29,15 @@ jest.mock('@react-native-community/slider', () => {
 // Mock Alert separately to avoid React Native module conflicts
 jest.mock('react-native/Libraries/Alert/Alert', () => ({
   alert: jest.fn(),
+}));
+
+// Mock SafeAreaView from react-native-safe-area-context
+jest.mock('react-native-safe-area-context', () => ({
+  SafeAreaView: jest.fn(({ children, ...props }) => {
+    const React = require('react');
+    const { View } = require('react-native');
+    return React.createElement(View, props, children);
+  }),
 }));
 
 const mockSettingsService = SettingsService as jest.Mocked<typeof SettingsService>;
@@ -62,8 +68,12 @@ describe('SettingsScreen', () => {
 
     render(<SettingsScreen navigation={mockNavigation} />);
 
+    // Wait for component to finish loading
     await waitFor(() => {
       expect(mockSettingsService.loadSettings).toHaveBeenCalledTimes(1);
     });
+
+    // Add a small delay to let any async operations complete
+    await new Promise(resolve => setTimeout(resolve, 100));
   });
 });

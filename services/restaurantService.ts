@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Restaurant } from "../types/restaurant";
 import { LocationCoordinates, LocationService } from "./locationService";
 import { SharedCacheService } from "./sharedCacheService";
+import { BlacklistService } from "./blacklistService";
 
 // Geoapify API key from environment variables
 const GEOAPIFY_API_KEY = process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY;
@@ -97,7 +98,8 @@ export class RestaurantService {
         );
         if (localCachedRestaurants) {
           console.log('Using local cache');
-          return this.shuffleArray(localCachedRestaurants);
+          const filteredLocalRestaurants = await BlacklistService.filterBlacklistedRestaurants(localCachedRestaurants);
+          return this.shuffleArray(filteredLocalRestaurants);
         }
 
         // Check shared cache if local cache miss
@@ -107,9 +109,10 @@ export class RestaurantService {
         );
         if (sharedCachedRestaurants && sharedCachedRestaurants.length > 0) {
           console.log('Using shared cache, updating local cache');
+          const filteredSharedRestaurants = await BlacklistService.filterBlacklistedRestaurants(sharedCachedRestaurants);
           // Store shared cache data locally for faster future access
-          await this.cacheRestaurants(location, radiusInMeters, sharedCachedRestaurants);
-          return this.shuffleArray(sharedCachedRestaurants);
+          await this.cacheRestaurants(location, radiusInMeters, filteredSharedRestaurants);
+          return this.shuffleArray(filteredSharedRestaurants);
         }
       }
 
@@ -126,12 +129,15 @@ export class RestaurantService {
       );
 
       if (restaurants.length > 0) {
+        // Filter out blacklisted restaurants
+        const filteredRestaurants = await BlacklistService.filterBlacklistedRestaurants(restaurants);
+
         // Cache the results locally and in shared cache
         await Promise.all([
-          this.cacheRestaurants(location, radiusInMeters, restaurants),
-          SharedCacheService.setSharedCache(location, radiusInMeters, restaurants)
+          this.cacheRestaurants(location, radiusInMeters, filteredRestaurants),
+          SharedCacheService.setSharedCache(location, radiusInMeters, filteredRestaurants)
         ]);
-        return this.shuffleArray(restaurants);
+        return this.shuffleArray(filteredRestaurants);
       }
 
       // If no fresh restaurants found and we forced refresh, fall back to cached data
@@ -142,16 +148,19 @@ export class RestaurantService {
         );
         if (cachedRestaurants) {
           console.log("No new restaurants found, returning shuffled cached data");
-          return this.shuffleArray(cachedRestaurants);
+          const filteredCachedRestaurants = await BlacklistService.filterBlacklistedRestaurants(cachedRestaurants);
+          return this.shuffleArray(filteredCachedRestaurants);
         }
       }
 
       // Fallback to mock data
       console.warn("No restaurants found, using mock data");
-      return this.getMockRestaurantsWithRandomOrder();
+      const mockData = this.getMockRestaurantsWithRandomOrder();
+      return await BlacklistService.filterBlacklistedRestaurants(mockData);
     } catch (error) {
       console.error("Error fetching nearby restaurants:", error);
-      return this.getMockRestaurantsWithRandomOrder();
+      const mockData = this.getMockRestaurantsWithRandomOrder();
+      return await BlacklistService.filterBlacklistedRestaurants(mockData);
     }
   }
 
@@ -167,9 +176,10 @@ export class RestaurantService {
     try {
       if (!GEOAPIFY_API_KEY) {
         console.warn("Geoapify API key not configured, using mock data");
-        return this.getMockRestaurantsWithRandomOrder().filter(
+        const mockRestaurants = this.getMockRestaurantsWithRandomOrder().filter(
           restaurant => !seenRestaurantIds.includes(restaurant.id)
         );
+        return await BlacklistService.filterBlacklistedRestaurants(mockRestaurants);
       }
 
       // Try fetching with a larger radius to find new restaurants
@@ -180,16 +190,17 @@ export class RestaurantService {
         maxResults * 2 // Fetch more to filter out seen ones
       );
 
-      // Filter out already seen restaurants
-      const unseenRestaurants = restaurants.filter(
+      // Filter out already seen restaurants and blacklisted ones
+      const filteredRestaurants = await BlacklistService.filterBlacklistedRestaurants(restaurants);
+      const unseenRestaurants = filteredRestaurants.filter(
         restaurant => !seenRestaurantIds.includes(restaurant.id)
       );
 
       if (unseenRestaurants.length > 0) {
         // Cache the new results both locally and in shared cache
         await Promise.all([
-          this.cacheRestaurants(location, radiusInMeters, restaurants),
-          SharedCacheService.setSharedCache(location, radiusInMeters, restaurants)
+          this.cacheRestaurants(location, radiusInMeters, filteredRestaurants),
+          SharedCacheService.setSharedCache(location, radiusInMeters, filteredRestaurants)
         ]);
         return this.shuffleArray(unseenRestaurants.slice(0, maxResults));
       }
@@ -203,15 +214,16 @@ export class RestaurantService {
           maxResults * 3
         );
 
-        const newUnseenRestaurants = restaurants.filter(
+        const newFilteredRestaurants = await BlacklistService.filterBlacklistedRestaurants(restaurants);
+        const newUnseenRestaurants = newFilteredRestaurants.filter(
           restaurant => !seenRestaurantIds.includes(restaurant.id)
         );
 
         if (newUnseenRestaurants.length > 0) {
           // Cache both locally and in shared cache
           await Promise.all([
-            this.cacheRestaurants(location, radiusInMeters, restaurants),
-            SharedCacheService.setSharedCache(location, radiusInMeters, restaurants)
+            this.cacheRestaurants(location, radiusInMeters, newFilteredRestaurants),
+            SharedCacheService.setSharedCache(location, radiusInMeters, newFilteredRestaurants)
           ]);
           return this.shuffleArray(newUnseenRestaurants.slice(0, maxResults));
         }
@@ -220,7 +232,8 @@ export class RestaurantService {
       // If still no luck, return cached data excluding seen ones
       const cachedRestaurants = await this.getCachedRestaurants(location, radiusInMeters);
       if (cachedRestaurants) {
-        const unseenCached = cachedRestaurants.filter(
+        const filteredCached = await BlacklistService.filterBlacklistedRestaurants(cachedRestaurants);
+        const unseenCached = filteredCached.filter(
           restaurant => !seenRestaurantIds.includes(restaurant.id)
         );
         if (unseenCached.length > 0) {
@@ -229,10 +242,17 @@ export class RestaurantService {
       }
 
       // Last resort: return shuffled cached data (repeating restaurants)
-      return cachedRestaurants ? this.shuffleArray(cachedRestaurants) : this.getMockRestaurantsWithRandomOrder();
+      if (cachedRestaurants) {
+        const filteredFallback = await BlacklistService.filterBlacklistedRestaurants(cachedRestaurants);
+        return this.shuffleArray(filteredFallback);
+      }
+
+      const mockData = this.getMockRestaurantsWithRandomOrder();
+      return await BlacklistService.filterBlacklistedRestaurants(mockData);
     } catch (error) {
       console.error("Error fetching fresh restaurants:", error);
-      return this.getMockRestaurantsWithRandomOrder();
+      const mockData = this.getMockRestaurantsWithRandomOrder();
+      return await BlacklistService.filterBlacklistedRestaurants(mockData);
     }
   }
 

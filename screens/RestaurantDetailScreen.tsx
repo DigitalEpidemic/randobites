@@ -19,6 +19,7 @@ import { RestaurantService } from '../services/restaurantService';
 import { LocationCoordinates, LocationService } from '../services/locationService';
 import { SettingsService } from '../services/settingsService';
 import { ImageUploadModal } from '../components/ImageUploadModal';
+import { BlacklistService } from '../services/blacklistService';
 
 interface RestaurantDetailScreenProps {
   route: {
@@ -218,6 +219,70 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
     }
   };
 
+  const handleReportRestaurant = () => {
+    Alert.alert(
+      'Report Restaurant',
+      `Is there a problem with ${restaurant.name}?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: "Doesn't exist",
+          onPress: () => confirmReport("Restaurant doesn't exist at this location"),
+          style: 'destructive',
+        },
+        {
+          text: 'Wrong information',
+          onPress: () => confirmReport("Restaurant has incorrect information"),
+        },
+        {
+          text: 'Permanently closed',
+          onPress: () => confirmReport("Restaurant is permanently closed"),
+          style: 'destructive',
+        },
+      ]
+    );
+  };
+
+  const confirmReport = (reason: string) => {
+    Alert.alert(
+      'Confirm Report',
+      `Are you sure you want to report ${restaurant.name}?\n\nReason: ${reason}\n\nThis restaurant will no longer appear in your searches, even after clearing cache.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Report',
+          onPress: () => submitReport(reason),
+          style: 'destructive',
+        },
+      ]
+    );
+  };
+
+  const submitReport = async (reason: string) => {
+    try {
+      await BlacklistService.reportRestaurant(restaurant.id, restaurant.name, reason);
+      Alert.alert(
+        'Restaurant Reported',
+        `Thank you for reporting ${restaurant.name}. This restaurant will no longer appear in your searches.`,
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.goBack(),
+          },
+        ]
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to report restaurant. Please try again.');
+      console.error('Error reporting restaurant:', error);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1a1a1a" />
@@ -335,6 +400,13 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
               ]}>
                 {restaurant.phoneNumber ? 'Call Restaurant' : 'Phone Not Available'}
               </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.reportButton}
+              onPress={handleReportRestaurant}
+            >
+              <Text style={styles.reportButtonText}>Report Restaurant</Text>
             </TouchableOpacity>
           </View>
 
@@ -535,6 +607,20 @@ const styles = StyleSheet.create({
   },
   disabledButtonText: {
     color: '#ccc',
+  },
+  reportButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#FF6B6B',
+    paddingVertical: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  reportButtonText: {
+    color: '#FF6B6B',
+    fontSize: 16,
+    fontWeight: '600',
   },
   loadingIndicator: {
     flexDirection: 'row',

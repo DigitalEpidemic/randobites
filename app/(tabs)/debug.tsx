@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState } from 'react';
 import { StyleSheet, Pressable, Alert } from 'react-native';
 import { SharedCacheService } from '@/services/sharedCacheService';
+import { BlacklistService } from '@/services/blacklistService';
 
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
@@ -15,6 +16,8 @@ export default function DebugScreen() {
   const [isClearing, setIsClearing] = useState(false);
   const [cacheStats, setCacheStats] = useState<any>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [blacklistStats, setBlacklistStats] = useState<any>(null);
+  const [isLoadingBlacklist, setIsLoadingBlacklist] = useState(false);
   const colorScheme = useColorScheme();
 
   const clearCache = async () => {
@@ -30,9 +33,12 @@ export default function DebugScreen() {
       // Remove all cache keys
       await AsyncStorage.multiRemove(cacheKeys);
 
+      // Also clear local blacklist for resync with shared database
+      await BlacklistService.clearLocalBlacklist();
+
       Alert.alert(
         'Cache Cleared',
-        `Successfully cleared ${cacheKeys.length} cached restaurant entries.`,
+        `Successfully cleared ${cacheKeys.length} cached restaurant entries and local blacklist (will resync from shared database).`,
         [{ text: 'OK' }]
       );
     } catch (error) {
@@ -57,6 +63,19 @@ export default function DebugScreen() {
       Alert.alert('Error', 'Failed to load cache statistics');
     } finally {
       setIsLoadingStats(false);
+    }
+  };
+
+  const loadBlacklistStats = async () => {
+    try {
+      setIsLoadingBlacklist(true);
+      const stats = await BlacklistService.getBlacklistStats();
+      setBlacklistStats(stats);
+    } catch (error) {
+      console.error('Error loading blacklist stats:', error);
+      Alert.alert('Error', 'Failed to load blacklist statistics');
+    } finally {
+      setIsLoadingBlacklist(false);
     }
   };
 
@@ -90,7 +109,7 @@ export default function DebugScreen() {
           Cache Management
         </ThemedText>
         <ThemedText style={styles.sectionDescription}>
-          Clear cached restaurant data to force fresh API calls.
+          Clear cached restaurant data and local blacklist to force fresh API calls and resync blacklist from shared database.
         </ThemedText>
 
         <Pressable
@@ -152,6 +171,52 @@ export default function DebugScreen() {
             </ThemedText>
             <ThemedText style={styles.statText}>
               Avg Contributors: {cacheStats.averageContributors}
+            </ThemedText>
+          </ThemedView>
+        )}
+      </ThemedView>
+
+      <ThemedView style={styles.section}>
+        <ThemedText type="subtitle" style={styles.sectionTitle}>
+          Restaurant Blacklist
+        </ThemedText>
+        <ThemedText style={styles.sectionDescription}>
+          View statistics about reported restaurants. Blacklist persists independently of cache clearing.
+        </ThemedText>
+
+        <Pressable
+          style={[
+            styles.button,
+            { backgroundColor: Colors[colorScheme ?? 'light'].tint },
+            isLoadingBlacklist && styles.buttonDisabled
+          ]}
+          onPress={loadBlacklistStats}
+          disabled={isLoadingBlacklist}
+        >
+          <IconSymbol
+            name={isLoadingBlacklist ? "arrow.clockwise" : "list.bullet"}
+            size={20}
+            color={colorScheme === 'dark' ? '#000000' : '#FFFFFF'}
+            style={styles.buttonIcon}
+          />
+          <ThemedText style={[styles.buttonText, { color: colorScheme === 'dark' ? '#000000' : '#FFFFFF' }]}>
+            {isLoadingBlacklist ? 'Loading...' : 'Load Blacklist Stats'}
+          </ThemedText>
+        </Pressable>
+
+        {blacklistStats && (
+          <ThemedView style={styles.statsContainer}>
+            <ThemedText style={styles.statText}>
+              Total Blacklisted: {blacklistStats.totalBlacklisted}
+            </ThemedText>
+            <ThemedText style={styles.statText}>
+              Recently Reported: {blacklistStats.recentlyBlacklisted}
+            </ThemedText>
+            <ThemedText style={styles.statText}>
+              Shared Database: {blacklistStats.sharedBlacklisted}
+            </ThemedText>
+            <ThemedText style={styles.statText}>
+              Local Only: {blacklistStats.localBlacklisted}
             </ThemedText>
           </ThemedView>
         )}

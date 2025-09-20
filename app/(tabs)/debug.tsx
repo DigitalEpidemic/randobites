@@ -8,6 +8,7 @@ import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { BulkImageManager } from '@/components/BulkImageManager';
 import { Fonts } from '@/constants/theme';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -18,6 +19,7 @@ export default function DebugScreen() {
   const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [blacklistStats, setBlacklistStats] = useState<any>(null);
   const [isLoadingBlacklist, setIsLoadingBlacklist] = useState(false);
+  const [showBulkImageManager, setShowBulkImageManager] = useState(false);
   const colorScheme = useColorScheme();
 
   const clearCache = async () => {
@@ -221,6 +223,38 @@ export default function DebugScreen() {
           </ThemedView>
         )}
       </ThemedView>
+
+      <ThemedView style={styles.section}>
+        <ThemedText type="subtitle" style={styles.sectionTitle}>
+          Bulk Image Management
+        </ThemedText>
+        <ThemedText style={styles.sectionDescription}>
+          View and update images for all cached restaurants in bulk. This allows you to customize restaurant images across all cache regions.
+        </ThemedText>
+
+        <Pressable
+          style={[
+            styles.button,
+            { backgroundColor: Colors[colorScheme ?? 'light'].tint }
+          ]}
+          onPress={() => setShowBulkImageManager(true)}
+        >
+          <IconSymbol
+            name="photo.fill"
+            size={20}
+            color={colorScheme === 'dark' ? '#000000' : '#FFFFFF'}
+            style={styles.buttonIcon}
+          />
+          <ThemedText style={[styles.buttonText, { color: colorScheme === 'dark' ? '#000000' : '#FFFFFF' }]}>
+            Manage Restaurant Images
+          </ThemedText>
+        </Pressable>
+      </ThemedView>
+
+      <BulkImageManager
+        visible={showBulkImageManager}
+        onClose={() => setShowBulkImageManager(false)}
+      />
     </ParallaxScrollView>
   );
 }

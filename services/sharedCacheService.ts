@@ -35,9 +35,17 @@ export class SharedCacheService {
     const gridLng = Math.round(location.longitude / gridSize) * gridSize;
 
     // Normalize radius to common values to increase cache hits
-    const normalizedRadius = radiusInMeters <= 3000 ? 3000 :
-                           radiusInMeters <= 5000 ? 5000 :
-                           radiusInMeters <= 8000 ? 8000 : 10000;
+    // Support full range from settings (1km to 30km)
+    const normalizedRadius = radiusInMeters <= 1500 ? 1000 :
+                           radiusInMeters <= 2500 ? 2000 :
+                           radiusInMeters <= 3500 ? 3000 :
+                           radiusInMeters <= 4500 ? 4000 :
+                           radiusInMeters <= 6000 ? 5000 :
+                           radiusInMeters <= 8000 ? 7000 :
+                           radiusInMeters <= 12000 ? 10000 :
+                           radiusInMeters <= 17000 ? 15000 :
+                           radiusInMeters <= 22000 ? 20000 :
+                           radiusInMeters <= 27000 ? 25000 : 30000;
 
     return { gridLat, gridLng, normalizedRadius };
   }

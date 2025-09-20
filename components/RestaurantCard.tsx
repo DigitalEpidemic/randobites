@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Dimensions,
   ImageBackground,
-  TouchableOpacity,
 } from 'react-native';
 import { Restaurant } from '../types/restaurant';
 import { LocationCoordinates, LocationService } from '../services/locationService';
@@ -13,7 +12,6 @@ import { LocationCoordinates, LocationService } from '../services/locationServic
 interface RestaurantCardProps {
   restaurant: Restaurant;
   currentLocation?: LocationCoordinates;
-  onPress?: () => void;
 }
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -21,7 +19,6 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 export const RestaurantCard: React.FC<RestaurantCardProps> = ({
   restaurant,
   currentLocation,
-  onPress,
 }) => {
   const calculateDistance = (): number => {
     if (!currentLocation) {
@@ -51,10 +48,8 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
   };
 
   return (
-    <TouchableOpacity
+    <View
       style={styles.card}
-      onPress={onPress}
-      activeOpacity={0.9}
     >
       <ImageBackground
         source={{ uri: restaurant.image }}
@@ -100,7 +95,7 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
           </View>
         </View>
       </ImageBackground>
-    </TouchableOpacity>
+    </View>
   );
 };
 

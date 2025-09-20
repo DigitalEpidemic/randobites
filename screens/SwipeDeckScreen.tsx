@@ -158,6 +158,7 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
       <RestaurantCard
         key={restaurant.id}
         restaurant={restaurant}
+        currentLocation={currentLocation}
         onPress={() => {
           // Allow tapping the card to view details without swiping
           navigation.navigate("RestaurantDetail", { restaurant });

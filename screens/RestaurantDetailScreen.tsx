@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Restaurant } from '../types/restaurant';
 import { RestaurantService } from '../services/restaurantService';
+import { LocationCoordinates, LocationService } from '../services/locationService';
 
 interface RestaurantDetailScreenProps {
   route: {
@@ -33,6 +34,23 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
   const { restaurant: initialRestaurant } = route.params;
   const [restaurant, setRestaurant] = useState<Restaurant>(initialRestaurant);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<LocationCoordinates | null>(null);
+
+  // Get current location when component mounts
+  useEffect(() => {
+    const getCurrentLocation = async () => {
+      try {
+        const location = await LocationService.getCurrentLocation();
+        if (location) {
+          setCurrentLocation(location);
+        }
+      } catch (error) {
+        console.error('Error getting current location:', error);
+      }
+    };
+
+    getCurrentLocation();
+  }, []);
 
   // Fetch detailed restaurant information when component mounts
   useEffect(() => {
@@ -41,9 +59,9 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
       if (!restaurant.phoneNumber || !restaurant.address) {
         setIsLoadingDetails(true);
         try {
-          const detailedRestaurant = await RestaurantService.fetchRestaurantDetails(restaurant.id);
+          const detailedRestaurant = await RestaurantService.fetchRestaurantDetails(restaurant.id, currentLocation || undefined);
           if (detailedRestaurant) {
-            // Merge detailed data with existing data, preserving distance and other computed fields
+            // Merge detailed data with existing data, preserving coordinates and other computed fields
             setRestaurant(prev => ({
               ...prev,
               address: detailedRestaurant.address || prev.address,
@@ -60,7 +78,20 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
     };
 
     fetchDetails();
-  }, [restaurant.id, restaurant.phoneNumber, restaurant.address]);
+  }, [restaurant.id, restaurant.phoneNumber, restaurant.address, currentLocation]);
+
+  const calculateDistance = (): number => {
+    if (!currentLocation) {
+      return 0; // Default fallback
+    }
+
+    const restaurantLocation: LocationCoordinates = {
+      latitude: restaurant.latitude,
+      longitude: restaurant.longitude,
+    };
+
+    return LocationService.calculateDistance(currentLocation, restaurantLocation);
+  };
 
   const renderStars = (rating: number) => {
     const stars = [];
@@ -190,7 +221,7 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
               </View>
 
               <View style={styles.distanceContainer}>
-                <Text style={styles.distanceText}>{restaurant.distance} mi away</Text>
+                <Text style={styles.distanceText}>{calculateDistance().toFixed(1)} mi away</Text>
                 {restaurant.priceRange && (
                   <Text style={styles.priceRange}>{restaurant.priceRange}</Text>
                 )}

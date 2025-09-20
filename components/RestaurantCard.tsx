@@ -8,9 +8,11 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Restaurant } from '../types/restaurant';
+import { LocationCoordinates, LocationService } from '../services/locationService';
 
 interface RestaurantCardProps {
   restaurant: Restaurant;
+  currentLocation?: LocationCoordinates;
   onPress?: () => void;
 }
 
@@ -18,8 +20,22 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export const RestaurantCard: React.FC<RestaurantCardProps> = ({
   restaurant,
+  currentLocation,
   onPress,
 }) => {
+  const calculateDistance = (): number => {
+    if (!currentLocation) {
+      return 0; // Default fallback
+    }
+
+    const restaurantLocation: LocationCoordinates = {
+      latitude: restaurant.latitude,
+      longitude: restaurant.longitude,
+    };
+
+    return LocationService.calculateDistance(currentLocation, restaurantLocation);
+  };
+
   const renderStars = (rating: number) => {
     const stars = [];
     const fullStars = Math.floor(rating);
@@ -76,7 +92,7 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
             </View>
 
             <View style={styles.distanceContainer}>
-              <Text style={styles.distance}>{restaurant.distance} mi</Text>
+              <Text style={styles.distance}>{calculateDistance().toFixed(1)} mi</Text>
               {restaurant.priceRange && (
                 <Text style={styles.priceRange}>{restaurant.priceRange}</Text>
               )}

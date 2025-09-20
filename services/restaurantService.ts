@@ -344,12 +344,6 @@ export class RestaurantService {
     userLocation: LocationCoordinates
   ): Restaurant {
     const [longitude, latitude] = feature.geometry.coordinates;
-    const featureLocation: LocationCoordinates = { latitude, longitude };
-
-    const distance = LocationService.calculateDistance(
-      userLocation,
-      featureLocation
-    );
 
     const props = feature.properties;
     const raw = props.datasource?.raw || {};
@@ -388,7 +382,8 @@ export class RestaurantService {
       cuisine: this.extractCuisineFromGeoapify(feature),
       image: this.getCuisineSpecificImage(this.extractCuisineFromGeoapify(feature)),
       rating: rating,
-      distance: distance,
+      latitude: latitude,
+      longitude: longitude,
       description: this.generateGeoapifyDescription(feature),
       address: address,
       phoneNumber: phoneNumber,
@@ -406,12 +401,6 @@ export class RestaurantService {
     userLocation: LocationCoordinates
   ): Restaurant {
     const [longitude, latitude] = feature.geometry.coordinates;
-    const featureLocation: LocationCoordinates = { latitude, longitude };
-
-    const distance = LocationService.calculateDistance(
-      userLocation,
-      featureLocation
-    );
 
     const props = feature.properties;
     const raw = props.datasource?.raw || {};
@@ -446,7 +435,8 @@ export class RestaurantService {
         this.extractCuisineFromGeoapify(feature)
       ),
       rating: rating,
-      distance: distance,
+      latitude: latitude,
+      longitude: longitude,
       description: this.generateGeoapifyDescription(feature),
       address: address,
       phoneNumber: raw.phone || undefined,
@@ -843,7 +833,8 @@ export class RestaurantService {
         cuisine: "Italian",
         image: this.getCuisineSpecificImage("Italian"),
         rating: 4.5,
-        distance: 0.3,
+        latitude: 37.7849,
+        longitude: -122.4094,
         description:
           "Authentic Italian cuisine with fresh pasta made daily. Family-owned restaurant serving traditional recipes passed down through generations.",
         address: "123 Main Street, Downtown",
@@ -858,7 +849,8 @@ export class RestaurantService {
         cuisine: "Japanese",
         image: this.getCuisineSpecificImage("Japanese"),
         rating: 4.8,
-        distance: 0.7,
+        latitude: 37.7869,
+        longitude: -122.4076,
         description:
           "Fresh sushi and authentic ramen bowls. Our chefs trained in Tokyo bring you the most authentic Japanese dining experience.",
         address: "456 Oak Avenue, Midtown",
@@ -873,7 +865,8 @@ export class RestaurantService {
         cuisine: "Mexican",
         image: this.getCuisineSpecificImage("Mexican"),
         rating: 4.2,
-        distance: 1.2,
+        latitude: 37.7899,
+        longitude: -122.4089,
         description:
           "Street-style tacos with house-made salsas and fresh ingredients. Don't miss our famous fish tacos and craft margaritas!",
         address: "789 Pine Street, Arts District",
@@ -888,7 +881,8 @@ export class RestaurantService {
         cuisine: "American",
         image: this.getCuisineSpecificImage("American"),
         rating: 4.0,
-        distance: 0.5,
+        latitude: 37.7829,
+        longitude: -122.4058,
         description:
           "Gourmet burgers made with locally sourced beef and artisanal buns. Try our signature truffle fries!",
         address: "321 Elm Street, University District",
@@ -903,7 +897,8 @@ export class RestaurantService {
         cuisine: "Vegetarian",
         image: this.getCuisineSpecificImage("Vegetarian"),
         rating: 4.6,
-        distance: 0.9,
+        latitude: 37.7879,
+        longitude: -122.4102,
         description:
           "Plant-based cuisine that doesn't compromise on flavor. Organic, locally-sourced ingredients in every dish.",
         address: "654 Maple Drive, Green Valley",
@@ -918,7 +913,8 @@ export class RestaurantService {
         cuisine: "French",
         image: this.getCuisineSpecificImage("French"),
         rating: 4.7,
-        distance: 1.5,
+        latitude: 37.7919,
+        longitude: -122.4112,
         description:
           "Classic French bistro fare in an intimate setting. Our wine selection features over 200 bottles from French vineyards.",
         address: "987 Boulevard Street, Historic Quarter",
@@ -933,7 +929,8 @@ export class RestaurantService {
         cuisine: "Indian",
         image: this.getCuisineSpecificImage("Indian"),
         rating: 4.4,
-        distance: 2.1,
+        latitude: 37.7969,
+        longitude: -122.4142,
         description:
           "Aromatic Indian cuisine with both traditional and modern interpretations. Our tandoor oven creates the perfect naan and kebabs.",
         address: "147 Curry Lane, Little India",
@@ -948,7 +945,8 @@ export class RestaurantService {
         cuisine: "Chinese",
         image: this.getCuisineSpecificImage("Chinese"),
         rating: 4.1,
-        distance: 1.8,
+        latitude: 37.7939,
+        longitude: -122.4122,
         description:
           "Authentic Szechuan and Cantonese dishes. Family recipes that have been perfected over decades.",
         address: "258 Dynasty Road, Chinatown",

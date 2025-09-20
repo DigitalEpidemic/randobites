@@ -638,7 +638,7 @@ export class RestaurantService {
       id: props.place_id,
       name: props.name || "Restaurant",
       cuisine: this.extractCuisineFromGeoapify(feature),
-      image: this.getCuisineSpecificImage(this.extractCuisineFromGeoapify(feature)),
+      image: this.getCuisineSpecificImage(this.extractCuisineFromGeoapify(feature), props.name),
       rating: rating,
       latitude: latitude,
       longitude: longitude,
@@ -691,7 +691,8 @@ export class RestaurantService {
       name: props.name || "Restaurant",
       cuisine: this.extractCuisineFromGeoapify(feature),
       image: this.getCuisineSpecificImage(
-        this.extractCuisineFromGeoapify(feature)
+        this.extractCuisineFromGeoapify(feature),
+        props.name
       ),
       rating: rating,
       latitude: latitude,
@@ -761,9 +762,11 @@ export class RestaurantService {
    */
   private static inferCuisineFromName(name: string): string | null {
     const nameIndicators: { [key: string]: string } = {
+      // Pizza (specific category)
+      pizza: "Pizza",
+      pizzeria: "Pizza",
+
       // Italian indicators
-      pizza: "Italian",
-      pizzeria: "Italian",
       pasta: "Italian",
       italiano: "Italian",
       trattoria: "Italian",
@@ -801,15 +804,29 @@ export class RestaurantService {
       tandoor: "Indian",
       masala: "Indian",
       spice: "Indian",
+      malabar: "Indian",
 
       // Thai indicators
       thai: "Thai",
       pad: "Thai",
       bangkok: "Thai",
 
+      // Turkish/Mediterranean indicators
+      turkish: "Turkish",
+      agha: "Turkish",
+      kebab: "Turkish",
+      shawarma: "Mediterranean",
+      mediterranean: "Mediterranean",
+
+      // Coffee/Tea indicators
+      coffee: "Coffee_shop",
+      tea: "Bubble_tea",
+
+      // Ice cream indicators
+      "ice cream": "Ice_cream",
+
       // French indicators
       bistro: "French",
-      cafe: "French",
       brasserie: "French",
       "le ": "French",
 
@@ -819,6 +836,12 @@ export class RestaurantService {
       grill: "American",
       diner: "American",
       steakhouse: "American",
+
+      // Cafe indicators (keep separate from French)
+      cafe: "Cafe",
+      bakery: "Cafe",
+      eatery: "American",
+      lounge: "Cafe",
     };
 
     for (const [indicator, cuisine] of Object.entries(nameIndicators)) {
@@ -895,92 +918,178 @@ export class RestaurantService {
   }
 
   /**
-   * Get cuisine-specific food images
+   * Get cuisine-specific food images with better matching
    */
-  private static getCuisineSpecificImage(cuisine: string): string {
+  private static getCuisineSpecificImage(cuisine: string, restaurantName?: string): string {
+    // First try to get specific image based on restaurant name patterns
+    if (restaurantName) {
+      const nameBasedImage = this.getImageFromRestaurantName(restaurantName.toLowerCase());
+      if (nameBasedImage) {
+        console.log(`Selected name-based image for ${restaurantName}: ${nameBasedImage}`);
+        return nameBasedImage;
+      }
+    }
+
     const cuisineImages: { [key: string]: string[] } = {
+      Pizza: [
+        "https://images.unsplash.com/photo-1604068549290-dea0e4a305ca?w=400&h=300&fit=crop", // Pizza slice
+        "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&h=300&fit=crop", // Wood fired pizza
+        "https://images.unsplash.com/photo-1571997478779-2adcbbe9ab2f?w=400&h=300&fit=crop", // Pizza with toppings
+        "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=400&h=300&fit=crop", // Fresh pizza
+      ],
       Italian: [
-        "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=300&fit=crop", // Pizza
-        "https://images.unsplash.com/photo-1621996346565-e3dbc353d2e5?w=400&h=300&fit=crop", // Pasta
+        "https://plus.unsplash.com/premium_photo-1664472619078-9db415ebef44?w=400&h=300&fit=crop", // Pasta
         "https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=400&h=300&fit=crop", // Italian restaurant
+        "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=400&h=300&fit=crop", // Pasta dish
+        "https://images.unsplash.com/photo-1604068549290-dea0e4a305ca?w=400&h=300&fit=crop", // Pizza (working URL)
       ],
       Japanese: [
         "https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=400&h=300&fit=crop", // Sushi
         "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400&h=300&fit=crop", // Ramen
         "https://images.unsplash.com/photo-1617196034796-73dfa7b1fd56?w=400&h=300&fit=crop", // Japanese food
+        "https://images.unsplash.com/photo-1582450871972-ab5ca641643d?w=400&h=300&fit=crop", // Sushi rolls
       ],
       Mexican: [
         "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=400&h=300&fit=crop", // Tacos
-        "https://images.unsplash.com/photo-1565299585323-38174c26efe4?w=400&h=300&fit=crop", // Mexican food
-        "https://images.unsplash.com/photo-1624300629840-b5d88c8e7b8b?w=400&h=300&fit=crop", // Mexican restaurant
+        "https://images.unsplash.com/photo-1504544750208-dc0358e63f7f?w=400&h=300&fit=crop", // Mexican food
+        "https://images.unsplash.com/photo-1625167171750-419e95f877d8?w=400&h=300&fit=crop", // Mexican restaurant
+        "https://images.unsplash.com/photo-1599974579688-8dbdd335c77f?w=400&h=300&fit=crop", // Tacos close up
       ],
       Chinese: [
         "https://images.unsplash.com/photo-1526318896980-cf78c088247c?w=400&h=300&fit=crop", // Chinese food
         "https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400&h=300&fit=crop", // Chinese noodles
         "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=400&h=300&fit=crop", // Chinese dishes
+        "https://plus.unsplash.com/premium_photo-1674601031608-1a38ca161523?w=400&h=300&fit=crop", // Dim sum
       ],
       Indian: [
         "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400&h=300&fit=crop", // Indian curry
         "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=400&h=300&fit=crop", // Indian food
         "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&h=300&fit=crop", // Indian restaurant
+        "https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=400&h=300&fit=crop", // Indian spices and food
       ],
       American: [
         "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=300&fit=crop", // Burger
         "https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?w=400&h=300&fit=crop", // American diner
         "https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=400&h=300&fit=crop", // American food
+        "https://images.unsplash.com/photo-1572448862527-d3c904757de6?w=400&h=300&fit=crop", // BBQ
       ],
       French: [
         "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&h=300&fit=crop", // French restaurant
         "https://images.unsplash.com/photo-1559847844-5315695dadae?w=400&h=300&fit=crop", // French cuisine
         "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400&h=300&fit=crop", // French bistro
+        "https://images.unsplash.com/photo-1571997478779-2adcbbe9ab2f?w=400&h=300&fit=crop", // French pastries
       ],
       Thai: [
-        "https://images.unsplash.com/photo-1559314809-0f31657faf33?w=400&h=300&fit=crop", // Thai curry
+        "https://plus.unsplash.com/premium_photo-1669150852121-19bab9ca75f7?w=400&h=300&fit=crop", // Thai curry
         "https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=400&h=300&fit=crop", // Thai food
-        "https://images.unsplash.com/photo-1604263439201-171fb4d1b13c?w=400&h=300&fit=crop", // Thai restaurant
+        "https://images.unsplash.com/photo-1675150277436-9c7348972c11?w=400&h=300&fit=crop", // Thai restaurant
+        "https://images.unsplash.com/photo-1637806930600-37fa8892069d?w=400&h=300&fit=crop", // Pad Thai
       ],
       Korean: [
         "https://images.unsplash.com/photo-1565299507177-b0ac66763828?w=400&h=300&fit=crop", // Korean BBQ
         "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop", // Korean food
         "https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=400&h=300&fit=crop", // Korean dishes
+        "https://images.unsplash.com/photo-1632558610168-8377309e34c7?w=400&h=300&fit=crop", // Korean BBQ grill
       ],
       Mediterranean: [
         "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400&h=300&fit=crop", // Mediterranean
         "https://images.unsplash.com/photo-1554200876-56c2f25224fa?w=400&h=300&fit=crop", // Mediterranean food
         "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop", // Mediterranean cuisine
+        "https://images.unsplash.com/photo-1606735584785-1848fdcaea57?w=400&h=300&fit=crop", // Greek food
+      ],
+      Turkish: [
+        "https://images.unsplash.com/photo-1606577961562-7e2614b96132?w=400&h=300&fit=crop", // Turkish/Mediterranean food
+        "https://images.unsplash.com/photo-1653611540493-b3a896319fbf?w=400&h=300&fit=crop", // Mediterranean cuisine
+        "https://plus.unsplash.com/premium_photo-1661310070271-8dd22feaf3a7?w=400&h=300&fit=crop", // Turkish kebab
+        "https://images.unsplash.com/photo-1694192708388-7fa1198601af?w=400&h=300&fit=crop", // Grilled food
       ],
       Vegetarian: [
         "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400&h=300&fit=crop", // Vegetarian salad
         "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop", // Healthy bowl
         "https://images.unsplash.com/photo-1511690743698-d9d85f2fbf38?w=400&h=300&fit=crop", // Plant-based food
+        "https://images.unsplash.com/photo-1561535893-bb7a98c7ee45?w=400&h=300&fit=crop", // Fresh vegetables
       ],
       "Fast Food": [
         "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=300&fit=crop", // Burger
         "https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?w=400&h=300&fit=crop", // Fast food restaurant
         "https://images.unsplash.com/photo-1586190848861-99aa4a171e90?w=400&h=300&fit=crop", // Fast casual
+        "https://images.unsplash.com/photo-1551782450-17144efb9c50?w=400&h=300&fit=crop", // French fries
       ],
       Cafe: [
         "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400&h=300&fit=crop", // Coffee shop
-        "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400&h=300&fit=crop", // Cafe interior
+        "https://images.unsplash.com/photo-1648462908676-8305f0eff8e0?w=400&h=300&fit=crop", // Cafe interior
         "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&h=300&fit=crop", // Coffee and pastries
+        "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop", // Coffee cup
+      ],
+      Coffee_shop: [
+        "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400&h=300&fit=crop", // Coffee shop
+        "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop", // Coffee cup
+        "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&h=300&fit=crop", // Coffee and pastries
+        "https://images.unsplash.com/photo-1512568400610-62da28bc8a13?w=400&h=300&fit=crop", // Espresso
+      ],
+      "Bubble_tea": [
+        "https://images.unsplash.com/photo-1572932759882-bb34c848d1b3?w=400&h=300&fit=crop", // Bubble tea
+        "https://images.unsplash.com/photo-1747016804753-866c3ed6b3b7?w=400&h=300&fit=crop", // Boba tea
+        "https://images.unsplash.com/photo-1616103425322-91736a8724a9?w=400&h=300&fit=crop", // Tea shop
+        "https://images.unsplash.com/photo-1619995757657-fb467a837ea2?w=400&h=300&fit=crop", // Asian drinks
+      ],
+      "Ice_cream": [
+        "https://images.unsplash.com/photo-1501443762994-82bd5dace89a?w=400&h=300&fit=crop", // Ice cream
+        "https://images.unsplash.com/photo-1570197788417-0e82375c9371?w=400&h=300&fit=crop", // Ice cream shop
+        "https://images.unsplash.com/photo-1488900128323-21503983a07e?w=400&h=300&fit=crop", // Ice cream cone
+        "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=300&fit=crop", // Desserts
       ],
       "Bar & Grill": [
         "https://images.unsplash.com/photo-1544148103-0773bf10d330?w=400&h=300&fit=crop", // Bar food
-        "https://images.unsplash.com/photo-1572952829653-51ee360afe6c?w=400&h=300&fit=crop", // Grill food
+        "https://images.unsplash.com/photo-1723744910323-f80fd8997a50?w=400&h=300&fit=crop", // Grill food
         "https://images.unsplash.com/photo-1595295333158-4742f28fbd85?w=400&h=300&fit=crop", // Bar & grill
+        "https://images.unsplash.com/photo-1572448862527-d3c904757de6?w=400&h=300&fit=crop", // BBQ grill
       ],
     };
 
-    const cuisineKey = cuisine as keyof typeof cuisineImages;
+    // Normalize cuisine for lookup
+    let normalizedCuisine = cuisine;
+
+    // Handle compound cuisines (e.g., "Ice_cream;burger")
+    if (cuisine.includes(';')) {
+      const parts = cuisine.split(';');
+      normalizedCuisine = parts[0]; // Use the first part
+    }
+
+    const cuisineKey = normalizedCuisine as keyof typeof cuisineImages;
     const images = cuisineImages[cuisineKey] || [
       "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400&h=300&fit=crop", // Generic restaurant
       "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&h=300&fit=crop", // Generic dining
       "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=400&h=300&fit=crop", // Generic food
+      "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=400&h=300&fit=crop", // Food spread
     ];
 
     const selectedImage = images[Math.floor(Math.random() * images.length)];
-    console.log(`Selected ${cuisine} image: ${selectedImage}`);
+    console.log(`Selected ${normalizedCuisine} image: ${selectedImage}`);
     return selectedImage;
+  }
+
+  /**
+   * Get specific images based on restaurant name patterns (generic patterns only)
+   */
+  private static getImageFromRestaurantName(name: string): string | null {
+    const nameToImageMap: { [key: string]: string } = {
+      // Generic name patterns only - no specific brands
+      "shawarma": "https://images.unsplash.com/photo-1554200876-56c2f25224fa?w=400&h=300&fit=crop", // Middle Eastern
+      "coffee shop": "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400&h=300&fit=crop", // Coffee
+      "cafe": "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&h=300&fit=crop", // Cafe
+      "bakery": "https://images.unsplash.com/photo-1571997478779-2adcbbe9ab2f?w=400&h=300&fit=crop", // Bakery
+      "eatery": "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=400&h=300&fit=crop", // General food
+      "lounge": "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400&h=300&fit=crop", // Upscale dining
+    };
+
+    for (const [pattern, imageUrl] of Object.entries(nameToImageMap)) {
+      if (name.includes(pattern)) {
+        return imageUrl;
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -1177,7 +1286,7 @@ export class RestaurantService {
         id: "1",
         name: "Giuseppe's Italian Kitchen",
         cuisine: "Italian",
-        image: this.getCuisineSpecificImage("Italian"),
+        image: this.getCuisineSpecificImage("Italian", "Giuseppe's Italian Kitchen"),
         rating: 4.5,
         latitude: 37.7849,
         longitude: -122.4094,
@@ -1194,7 +1303,7 @@ export class RestaurantService {
         id: "2",
         name: "Sakura Sushi & Ramen",
         cuisine: "Japanese",
-        image: this.getCuisineSpecificImage("Japanese"),
+        image: this.getCuisineSpecificImage("Japanese", "Sakura Sushi & Ramen"),
         rating: 4.8,
         latitude: 37.7869,
         longitude: -122.4076,
@@ -1211,7 +1320,7 @@ export class RestaurantService {
         id: "3",
         name: "Taco Libre",
         cuisine: "Mexican",
-        image: this.getCuisineSpecificImage("Mexican"),
+        image: this.getCuisineSpecificImage("Mexican", "Taco Libre"),
         rating: 4.2,
         latitude: 37.7899,
         longitude: -122.4089,
@@ -1228,7 +1337,7 @@ export class RestaurantService {
         id: "4",
         name: "The Burger Joint",
         cuisine: "American",
-        image: this.getCuisineSpecificImage("American"),
+        image: this.getCuisineSpecificImage("American", "The Burger Joint"),
         rating: 4.0,
         latitude: 37.7829,
         longitude: -122.4058,
@@ -1245,7 +1354,7 @@ export class RestaurantService {
         id: "5",
         name: "Green Garden Cafe",
         cuisine: "Vegetarian",
-        image: this.getCuisineSpecificImage("Vegetarian"),
+        image: this.getCuisineSpecificImage("Vegetarian", "Green Garden Cafe"),
         rating: 4.6,
         latitude: 37.7879,
         longitude: -122.4102,
@@ -1262,7 +1371,7 @@ export class RestaurantService {
         id: "6",
         name: "Le Petit Bistro",
         cuisine: "French",
-        image: this.getCuisineSpecificImage("French"),
+        image: this.getCuisineSpecificImage("French", "Le Petit Bistro"),
         rating: 4.7,
         latitude: 37.7919,
         longitude: -122.4112,
@@ -1279,7 +1388,7 @@ export class RestaurantService {
         id: "7",
         name: "Spice Route",
         cuisine: "Indian",
-        image: this.getCuisineSpecificImage("Indian"),
+        image: this.getCuisineSpecificImage("Indian", "Spice Route"),
         rating: 4.4,
         latitude: 37.7969,
         longitude: -122.4142,
@@ -1296,7 +1405,7 @@ export class RestaurantService {
         id: "8",
         name: "Dragon Palace",
         cuisine: "Chinese",
-        image: this.getCuisineSpecificImage("Chinese"),
+        image: this.getCuisineSpecificImage("Chinese", "Dragon Palace"),
         rating: 4.1,
         latitude: 37.7939,
         longitude: -122.4122,

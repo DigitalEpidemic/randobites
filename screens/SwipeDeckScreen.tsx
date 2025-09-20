@@ -147,7 +147,7 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
   const onSwipedAll = () => {
     const hasSeenRestaurants = seenRestaurantIds.length > 0;
     const alertMessage = hasSeenRestaurants
-      ? "Looking for new restaurants in your area. This may include places further away."
+      ? "Looking for new restaurants within your set radius."
       : "Would you like to find more restaurants in your area?";
 
     Alert.alert(

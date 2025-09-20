@@ -182,12 +182,11 @@ export class RestaurantService {
         return await BlacklistService.filterBlacklistedRestaurants(mockRestaurants);
       }
 
-      // Try fetching with a larger radius to find new restaurants
-      const expandedRadius = Math.min(radiusInMeters * 2, 15000); // Increase initial expansion and max to 15km
+      // Fetch restaurants within user's specified radius only
       let restaurants = await this.fetchFromGeoapify(
         location,
-        expandedRadius,
-        maxResults * 3 // Fetch even more to ensure we have enough after filtering
+        radiusInMeters, // Respect user's max radius setting
+        maxResults * 3 // Fetch more to ensure we have enough after filtering
       );
 
       // Filter out already seen restaurants and blacklisted ones
@@ -211,34 +210,6 @@ export class RestaurantService {
         return this.shuffleArray(restaurantsToReturn);
       }
 
-      // If still no new restaurants, try even larger radius
-      const maxRadius = 20000; // Increase max radius to 20km
-      if (expandedRadius < maxRadius) {
-        console.log(`Expanding search to ${maxRadius/1000}km radius`);
-        restaurants = await this.fetchFromGeoapify(
-          location,
-          maxRadius,
-          maxResults * 4 // Fetch even more from larger radius
-        );
-
-        const newFilteredRestaurants = await BlacklistService.filterBlacklistedRestaurants(restaurants);
-        const newUnseenRestaurants = newFilteredRestaurants.filter(
-          restaurant => !seenRestaurantIds.includes(restaurant.id)
-        );
-
-        console.log(`Extended fetch: Found ${restaurants.length} total, ${newFilteredRestaurants.length} after filter, ${newUnseenRestaurants.length} unseen`);
-
-        if (newUnseenRestaurants.length > 0) {
-          // Cache both locally and in shared cache
-          await Promise.all([
-            this.cacheRestaurants(location, radiusInMeters, newFilteredRestaurants),
-            SharedCacheService.setSharedCache(location, radiusInMeters, newFilteredRestaurants)
-          ]);
-          const extendedRestaurantsToReturn = newUnseenRestaurants.slice(0, Math.max(maxResults, 15));
-          console.log(`Returning ${extendedRestaurantsToReturn.length} restaurants from extended search`);
-          return this.shuffleArray(extendedRestaurantsToReturn);
-        }
-      }
 
       // If still no luck, return cached data excluding seen ones
       const cachedRestaurants = await this.getCachedRestaurants(location, radiusInMeters);

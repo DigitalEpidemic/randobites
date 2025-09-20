@@ -170,8 +170,10 @@ export class RestaurantService {
   }
 
   /**
-   * Fetch restaurants using cumulative ring-based approach
-   * Combines multiple ring caches: 0-10km, 10-20km, 20-30km
+   * Fetch restaurants using cumulative ring-based approach with multiple offset centers
+   * Zone A (0-10km): one call from original point
+   * Zone B (10-20km): 6 offset centers at ~15km, each with 10km radius
+   * Zone C (20-30km): 6 offset centers at ~25km, each with 10km radius
    */
   private static async fetchCumulativeRestaurants(
     location: LocationCoordinates,
@@ -181,103 +183,150 @@ export class RestaurantService {
   ): Promise<Restaurant[]> {
     console.log(`Using cumulative approach for ${radiusInMeters}m radius`);
 
-    // Define radius rings in kilometers
-    const rings = [10000, 20000, 30000]; // 10km, 20km, 30km
+    // Check for cached cumulative results first (unless forcing refresh)
+    if (!forceRefresh) {
+      const cachedCumulative = await this.getCachedRestaurants(location, radiusInMeters);
+      if (cachedCumulative && cachedCumulative.length > 0) {
+        console.log(`Using cached cumulative results for ${radiusInMeters}m radius (${cachedCumulative.length} restaurants)`);
+        const filteredRestaurants = await BlacklistService.filterBlacklistedRestaurants(cachedCumulative);
+        return this.shuffleArray(filteredRestaurants);
+      }
+    }
+
     const allRestaurants: Restaurant[] = [];
     const seenIds = new Set<string>();
 
-    // Find which rings we need based on requested radius
-    const neededRings = rings.filter(ring => ring <= radiusInMeters);
+    // Zone A (0-10km): single call from original point
+    if (radiusInMeters >= 10000) {
+      console.log('Fetching Zone A (0-10km) from original center');
+      const zoneARestaurants = await this.fetchFreshRestaurants(location, 10000, maxResults, Array.from(seenIds));
 
-    for (const ringRadius of neededRings) {
-      console.log(`Fetching ring: ${ringRadius}m`);
-
-      // Check cache first for this ring
-      let ringRestaurants: Restaurant[] = [];
-
-      if (!forceRefresh) {
-        const cachedRing = await this.getCachedRestaurants(location, ringRadius);
-        if (cachedRing) {
-          console.log(`Using cached data for ${ringRadius}m ring`);
-          ringRestaurants = cachedRing;
-        }
-      }
-
-      // If no cache or forcing refresh, fetch from API
-      if (ringRestaurants.length === 0) {
-        console.log(`Fetching fresh data for ${ringRadius}m ring`);
-
-        // For outer rings, offset the search center to find restaurants in different areas
-        const searchCenter = this.getOffsetSearchCenter(location, ringRadius, neededRings.indexOf(ringRadius));
-        console.log(`Ring ${ringRadius}m: searching from offset center (${searchCenter.latitude.toFixed(4)}, ${searchCenter.longitude.toFixed(4)})`);
-
-        const freshRestaurants = await this.fetchFromGeoapify(searchCenter, ringRadius, maxResults * 2);
-
-        if (freshRestaurants.length > 0) {
-          // Cache the FULL API response for this radius (not filtered)
-          await Promise.all([
-            this.cacheRestaurants(location, ringRadius, freshRestaurants),
-            SharedCacheService.setSharedCache(location, ringRadius, freshRestaurants)
-          ]);
-
-          // Then filter to only restaurants in this ring for combining (use original center for distance calc)
-          const minRadius = neededRings.indexOf(ringRadius) === 0 ? 0 : neededRings[neededRings.indexOf(ringRadius) - 1];
-          ringRestaurants = this.filterRestaurantsByRing(freshRestaurants, location, minRadius, ringRadius);
-        }
-      } else {
-        // Filter cached data to this ring only
-        const minRadius = neededRings.indexOf(ringRadius) === 0 ? 0 : neededRings[neededRings.indexOf(ringRadius) - 1];
-        ringRestaurants = this.filterRestaurantsByRing(ringRestaurants, location, minRadius, ringRadius);
-      }
-
-      // Add unique restaurants from this ring
-      for (const restaurant of ringRestaurants) {
+      // Add to results and seenIds
+      for (const restaurant of zoneARestaurants) {
         if (!seenIds.has(restaurant.id)) {
           seenIds.add(restaurant.id);
           allRestaurants.push(restaurant);
         }
       }
+      console.log(`Zone A: Added ${zoneARestaurants.length} restaurants`);
     }
 
-    console.log(`Cumulative result: ${allRestaurants.length} restaurants from ${neededRings.length} rings`);
+    // Zone B (10-20km): 6 offset centers at ~15km
+    if (radiusInMeters >= 20000) {
+      console.log('Fetching Zone B (10-20km) using 6 offset centers at 15km');
+      const offsetCenters = this.getOffsetSearchCenters(location, 15);
 
-    // Filter blacklisted and return
+      for (const [index, center] of offsetCenters.entries()) {
+        console.log(`Zone B center ${index + 1}: (${center.latitude.toFixed(4)}, ${center.longitude.toFixed(4)})`);
+
+        // Fetch from this offset center with 10km radius
+        const centerRestaurants = await this.fetchFreshRestaurants(center, 10000, maxResults, Array.from(seenIds));
+
+        // Filter to only restaurants in the 10-20km ring from original location
+        const ringRestaurants = this.filterRestaurantsByRing(centerRestaurants, location, 10000, 20000);
+
+        // Add to results and seenIds
+        for (const restaurant of ringRestaurants) {
+          if (!seenIds.has(restaurant.id)) {
+            seenIds.add(restaurant.id);
+            allRestaurants.push(restaurant);
+          }
+        }
+        console.log(`Zone B center ${index + 1}: ${centerRestaurants.length} total, ${ringRestaurants.length} in ring, ${ringRestaurants.filter(r => !seenIds.has(r.id)).length} new`);
+      }
+    }
+
+    // Zone C (20-30km): 6 offset centers at ~25km
+    if (radiusInMeters >= 30000) {
+      console.log('Fetching Zone C (20-30km) using 6 offset centers at 25km');
+      const offsetCenters = this.getOffsetSearchCenters(location, 25);
+
+      for (const [index, center] of offsetCenters.entries()) {
+        console.log(`Zone C center ${index + 1}: (${center.latitude.toFixed(4)}, ${center.longitude.toFixed(4)})`);
+
+        // Fetch from this offset center with 10km radius
+        const centerRestaurants = await this.fetchFreshRestaurants(center, 10000, maxResults, Array.from(seenIds));
+
+        // Filter to only restaurants in the 20-30km ring from original location
+        const ringRestaurants = this.filterRestaurantsByRing(centerRestaurants, location, 20000, 30000);
+
+        // Add to results and seenIds
+        for (const restaurant of ringRestaurants) {
+          if (!seenIds.has(restaurant.id)) {
+            seenIds.add(restaurant.id);
+            allRestaurants.push(restaurant);
+          }
+        }
+        console.log(`Zone C center ${index + 1}: ${centerRestaurants.length} total, ${ringRestaurants.length} in ring, ${ringRestaurants.filter(r => !seenIds.has(r.id)).length} new`);
+      }
+    }
+
+    console.log(`Cumulative result: ${allRestaurants.length} total restaurants from all zones`);
+
+    // Cache the complete cumulative results with the original requested radius
+    if (allRestaurants.length > 0) {
+      await Promise.all([
+        this.cacheRestaurants(location, radiusInMeters, allRestaurants),
+        SharedCacheService.setSharedCache(location, radiusInMeters, allRestaurants)
+      ]);
+      console.log(`Cached cumulative results for ${radiusInMeters}m radius`);
+    }
+
+    // Filter blacklisted and return shuffled results
     const filteredRestaurants = await BlacklistService.filterBlacklistedRestaurants(allRestaurants);
     return this.shuffleArray(filteredRestaurants);
   }
 
   /**
-   * Get an offset search center for outer rings to find restaurants in different areas
+   * Generate 6 offset search centers at specified distance using haversine formula
+   * Returns centers at 0°, 60°, 120°, 180°, 240°, 300° bearings
    */
-  private static getOffsetSearchCenter(
+  private static getOffsetSearchCenters(
     originalCenter: LocationCoordinates,
-    ringRadiusMeters: number,
-    ringIndex: number
-  ): LocationCoordinates {
-    // For the first ring (10km), use original center
-    if (ringIndex === 0) {
-      return originalCenter;
+    offsetDistanceKm: number
+  ): LocationCoordinates[] {
+    const centers: LocationCoordinates[] = [];
+
+    // 6 bearings evenly distributed around the circle
+    const bearings = [0, 60, 120, 180, 240, 300];
+
+    // Earth's radius in kilometers
+    const earthRadiusKm = 6371;
+
+    // Convert original coordinates to radians
+    const lat1Rad = (originalCenter.latitude * Math.PI) / 180;
+    const lon1Rad = (originalCenter.longitude * Math.PI) / 180;
+
+    // Distance ratio
+    const distanceRatio = offsetDistanceKm / earthRadiusKm;
+
+    for (const bearing of bearings) {
+      // Convert bearing to radians
+      const bearingRad = (bearing * Math.PI) / 180;
+
+      // Calculate new latitude using haversine formula
+      const lat2Rad = Math.asin(
+        Math.sin(lat1Rad) * Math.cos(distanceRatio) +
+        Math.cos(lat1Rad) * Math.sin(distanceRatio) * Math.cos(bearingRad)
+      );
+
+      // Calculate new longitude using haversine formula
+      const lon2Rad = lon1Rad + Math.atan2(
+        Math.sin(bearingRad) * Math.sin(distanceRatio) * Math.cos(lat1Rad),
+        Math.cos(distanceRatio) - Math.sin(lat1Rad) * Math.sin(lat2Rad)
+      );
+
+      // Convert back to degrees
+      const offsetCenter = {
+        latitude: (lat2Rad * 180) / Math.PI,
+        longitude: (lon2Rad * 180) / Math.PI
+      };
+
+      centers.push(offsetCenter);
     }
 
-    // For outer rings, offset the search center in different directions
-    const offsetDistanceKm = (ringRadiusMeters / 1000) * 0.6; // Offset by 60% of ring radius
-
-    // Use different angles for different rings to spread them out
-    const angles = [0, 120, 240]; // 0°, 120°, 240° for variety
-    const angle = angles[ringIndex % angles.length];
-    const angleRad = (angle * Math.PI) / 180;
-
-    // Calculate offset coordinates (approximate, good enough for our purpose)
-    const latOffset = (offsetDistanceKm / 111) * Math.cos(angleRad); // ~111km per degree latitude
-    const lonOffset = (offsetDistanceKm / (111 * Math.cos(originalCenter.latitude * Math.PI / 180))) * Math.sin(angleRad);
-
-    const offsetCenter = {
-      latitude: originalCenter.latitude + latOffset,
-      longitude: originalCenter.longitude + lonOffset
-    };
-
-    console.log(`Ring ${ringIndex}: offset ${offsetDistanceKm.toFixed(1)}km at ${angle}° from original center`);
-    return offsetCenter;
+    console.log(`Generated ${centers.length} offset centers at ${offsetDistanceKm}km distance`);
+    return centers;
   }
 
   /**
@@ -401,7 +450,7 @@ export class RestaurantService {
 
       // Convert Geoapify features to restaurants (basic info only)
       const restaurants = data.features
-        .filter((feature) => feature.properties.name) // Only include places with names
+        .filter((feature) => feature.properties.name && typeof feature.properties.name === 'string') // Only include places with valid names
         .map((feature, index) => {
           console.log(`\n--- Restaurant ${index + 1} RAW DATA ---`);
           console.log("Full feature object:", JSON.stringify(feature, null, 2));
@@ -633,7 +682,9 @@ export class RestaurantService {
     }
 
     // Try to infer cuisine from restaurant name
-    const restaurantName = feature.properties.name?.toLowerCase() || "";
+    const restaurantName = (feature.properties.name && typeof feature.properties.name === 'string')
+      ? feature.properties.name.toLowerCase()
+      : "";
     const nameBasedCuisine = this.inferCuisineFromName(restaurantName);
     if (nameBasedCuisine) {
       console.log(

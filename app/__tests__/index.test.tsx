@@ -1,9 +1,9 @@
-import React from 'react';
-import { render } from '@testing-library/react-native';
-import HomeScreen from '../(tabs)/index';
+import { render } from "@testing-library/react-native";
+import React from "react";
+import HomeScreen from "../(tabs)/index";
 
 // Mock expo-router
-jest.mock('expo-router', () => ({
+jest.mock("expo-router", () => ({
   useRouter: () => ({
     push: jest.fn(),
     back: jest.fn(),
@@ -11,27 +11,29 @@ jest.mock('expo-router', () => ({
 }));
 
 // Mock the SwipeDeckScreen component
-jest.mock('@/screens/SwipeDeckScreen', () => {
-  const { Text } = require('react-native');
-  const mockReact = require('react');
-  return {
-    SwipeDeckScreen: ({ navigation }: any) => {
-      return mockReact.createElement(Text, { testID: 'swipe-deck-screen' }, 'SwipeDeckScreen');
-    },
-  };
-});
+jest.mock("@/screens/SwipeDeckScreen", () => ({
+  SwipeDeckScreen: () => {
+    const React = require("react");
+    const { Text } = require("react-native");
+    return React.createElement(
+      Text,
+      { testID: "swipe-deck-screen" },
+      "SwipeDeckScreen"
+    );
+  },
+}));
 
-describe('HomeScreen', () => {
-  it('renders without crashing', () => {
+describe("HomeScreen", () => {
+  it("renders without crashing", () => {
     const { getByTestId } = render(<HomeScreen />);
-    expect(getByTestId('swipe-deck-screen')).toBeTruthy();
+    expect(getByTestId("swipe-deck-screen")).toBeTruthy();
   });
 
-  it('creates navigation object with correct methods', () => {
+  it("creates navigation object with correct methods", () => {
     const mockPush = jest.fn();
     const mockBack = jest.fn();
 
-    jest.doMock('expo-router', () => ({
+    jest.doMock("expo-router", () => ({
       useRouter: () => ({
         push: mockPush,
         back: mockBack,

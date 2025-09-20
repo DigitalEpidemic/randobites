@@ -46,9 +46,20 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
 
     // Basic URL validation
     try {
-      new URL(imageUrl);
+      const url = new URL(imageUrl);
+      // Ensure HTTPS for better compatibility
+      if (url.protocol !== 'https:') {
+        Alert.alert('Error', 'Please use an HTTPS URL for better compatibility');
+        return;
+      }
     } catch {
       Alert.alert('Error', 'Please enter a valid URL');
+      return;
+    }
+
+    // Test if image loads before submitting
+    if (previewError) {
+      Alert.alert('Error', 'The image failed to load in preview. Please check the URL or try a different image.');
       return;
     }
 
@@ -69,11 +80,13 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
     }
   };
 
-  const handleImageError = () => {
+  const handleImageError = (error: any) => {
+    console.log('Image load error:', error);
     setPreviewError(true);
   };
 
   const handleImageLoad = () => {
+    console.log('Image loaded successfully');
     setPreviewError(false);
   };
 
@@ -153,7 +166,8 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
               <Text style={styles.tipsTitle}>Tips:</Text>
               <Text style={styles.tipText}>• Use direct image URLs (ending in .jpg, .png, etc.)</Text>
               <Text style={styles.tipText}>• Images from Unsplash, Imgur, or other image hosts work well</Text>
-              <Text style={styles.tipText}>• Make sure the image is publicly accessible</Text>
+              <Text style={styles.tipText}>• Make sure the image is publicly accessible and uses HTTPS</Text>
+              <Text style={styles.tipText}>• Some CDNs (like Yelp) may block external access</Text>
               <Text style={styles.tipText}>• Your image will be shared with other users in this area</Text>
             </View>
           </View>

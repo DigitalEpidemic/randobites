@@ -17,6 +17,7 @@ import { Feather } from '@expo/vector-icons';
 import { Restaurant } from '../types/restaurant';
 import { RestaurantService } from '../services/restaurantService';
 import { LocationCoordinates, LocationService } from '../services/locationService';
+import { SettingsService } from '../services/settingsService';
 import { ImageUploadModal } from '../components/ImageUploadModal';
 
 interface RestaurantDetailScreenProps {
@@ -190,10 +191,15 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
     }
 
     try {
+      // Get the user's current radius setting to match the cache
+      const maxRadiusKm = await SettingsService.getMaxRadius();
+      const maxRadiusMeters = SettingsService.kmToMeters(maxRadiusKm);
+
       const success = await RestaurantService.updateRestaurantImage(
         restaurant.id,
         newImageUrl,
-        currentLocation
+        currentLocation,
+        maxRadiusMeters
       );
 
       if (success) {

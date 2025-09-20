@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Restaurant } from "../types/restaurant";
 import { LocationCoordinates, LocationService } from "./locationService";
+import { SharedCacheService } from "./sharedCacheService";
 
 // Geoapify API key from environment variables
 const GEOAPIFY_API_KEY = process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY;
@@ -87,14 +88,28 @@ export class RestaurantService {
     forceRefresh: boolean = false // New parameter to force fresh data
   ): Promise<Restaurant[]> {
     try {
-      // If not forcing refresh, check cache first
+      // If not forcing refresh, check caches first (local, then shared)
       if (!forceRefresh) {
-        const cachedRestaurants = await this.getCachedRestaurants(
+        // Check local cache first (fastest)
+        const localCachedRestaurants = await this.getCachedRestaurants(
           location,
           radiusInMeters
         );
-        if (cachedRestaurants) {
-          return this.shuffleArray(cachedRestaurants);
+        if (localCachedRestaurants) {
+          console.log('Using local cache');
+          return this.shuffleArray(localCachedRestaurants);
+        }
+
+        // Check shared cache if local cache miss
+        const sharedCachedRestaurants = await SharedCacheService.getSharedCache(
+          location,
+          radiusInMeters
+        );
+        if (sharedCachedRestaurants && sharedCachedRestaurants.length > 0) {
+          console.log('Using shared cache, updating local cache');
+          // Store shared cache data locally for faster future access
+          await this.cacheRestaurants(location, radiusInMeters, sharedCachedRestaurants);
+          return this.shuffleArray(sharedCachedRestaurants);
         }
       }
 
@@ -111,8 +126,11 @@ export class RestaurantService {
       );
 
       if (restaurants.length > 0) {
-        // Cache the results
-        await this.cacheRestaurants(location, radiusInMeters, restaurants);
+        // Cache the results locally and in shared cache
+        await Promise.all([
+          this.cacheRestaurants(location, radiusInMeters, restaurants),
+          SharedCacheService.setSharedCache(location, radiusInMeters, restaurants)
+        ]);
         return this.shuffleArray(restaurants);
       }
 
@@ -168,8 +186,11 @@ export class RestaurantService {
       );
 
       if (unseenRestaurants.length > 0) {
-        // Cache the new results
-        await this.cacheRestaurants(location, radiusInMeters, restaurants);
+        // Cache the new results both locally and in shared cache
+        await Promise.all([
+          this.cacheRestaurants(location, radiusInMeters, restaurants),
+          SharedCacheService.setSharedCache(location, radiusInMeters, restaurants)
+        ]);
         return this.shuffleArray(unseenRestaurants.slice(0, maxResults));
       }
 
@@ -187,7 +208,11 @@ export class RestaurantService {
         );
 
         if (newUnseenRestaurants.length > 0) {
-          await this.cacheRestaurants(location, radiusInMeters, restaurants);
+          // Cache both locally and in shared cache
+          await Promise.all([
+            this.cacheRestaurants(location, radiusInMeters, restaurants),
+            SharedCacheService.setSharedCache(location, radiusInMeters, restaurants)
+          ]);
           return this.shuffleArray(newUnseenRestaurants.slice(0, maxResults));
         }
       }

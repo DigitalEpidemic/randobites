@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState } from 'react';
 import { StyleSheet, Pressable, Alert } from 'react-native';
+import { SharedCacheService } from '@/services/sharedCacheService';
 
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
@@ -12,6 +13,8 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function DebugScreen() {
   const [isClearing, setIsClearing] = useState(false);
+  const [cacheStats, setCacheStats] = useState<any>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
   const colorScheme = useColorScheme();
 
   const clearCache = async () => {
@@ -41,6 +44,19 @@ export default function DebugScreen() {
       );
     } finally {
       setIsClearing(false);
+    }
+  };
+
+  const loadCacheStats = async () => {
+    try {
+      setIsLoadingStats(true);
+      const stats = await SharedCacheService.getCacheStats();
+      setCacheStats(stats);
+    } catch (error) {
+      console.error('Error loading cache stats:', error);
+      Alert.alert('Error', 'Failed to load cache statistics');
+    } finally {
+      setIsLoadingStats(false);
     }
   };
 
@@ -97,6 +113,49 @@ export default function DebugScreen() {
           </ThemedText>
         </Pressable>
       </ThemedView>
+
+      <ThemedView style={styles.section}>
+        <ThemedText type="subtitle" style={styles.sectionTitle}>
+          Shared Cache Statistics
+        </ThemedText>
+        <ThemedText style={styles.sectionDescription}>
+          View statistics about the shared restaurant cache.
+        </ThemedText>
+
+        <Pressable
+          style={[
+            styles.button,
+            { backgroundColor: Colors[colorScheme ?? 'light'].tint },
+            isLoadingStats && styles.buttonDisabled
+          ]}
+          onPress={loadCacheStats}
+          disabled={isLoadingStats}
+        >
+          <IconSymbol
+            name={isLoadingStats ? "arrow.clockwise" : "chart.bar.fill"}
+            size={20}
+            color={colorScheme === 'dark' ? '#000000' : '#FFFFFF'}
+            style={styles.buttonIcon}
+          />
+          <ThemedText style={[styles.buttonText, { color: colorScheme === 'dark' ? '#000000' : '#FFFFFF' }]}>
+            {isLoadingStats ? 'Loading...' : 'Load Cache Stats'}
+          </ThemedText>
+        </Pressable>
+
+        {cacheStats && (
+          <ThemedView style={styles.statsContainer}>
+            <ThemedText style={styles.statText}>
+              Total Cache Regions: {cacheStats.totalCaches}
+            </ThemedText>
+            <ThemedText style={styles.statText}>
+              Total Restaurants: {cacheStats.totalRestaurants}
+            </ThemedText>
+            <ThemedText style={styles.statText}>
+              Avg Contributors: {cacheStats.averageContributors}
+            </ThemedText>
+          </ThemedView>
+        )}
+      </ThemedView>
     </ParallaxScrollView>
   );
 }
@@ -152,5 +211,16 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  statsContainer: {
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  statText: {
+    fontSize: 14,
+    marginBottom: 4,
+    fontFamily: 'monospace',
   },
 });

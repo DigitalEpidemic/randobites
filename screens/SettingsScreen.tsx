@@ -109,13 +109,13 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
             <View style={styles.sliderLabelContainer}>
               <Text style={styles.sliderLabel}>1 km</Text>
               <Text style={styles.currentValue}>{settings.maxRadius.toFixed(1)} km</Text>
-              <Text style={styles.sliderLabel}>20 km</Text>
+              <Text style={styles.sliderLabel}>30 km</Text>
             </View>
 
             <Slider
               style={styles.slider}
               minimumValue={1}
-              maximumValue={20}
+              maximumValue={30}
               value={settings.maxRadius}
               onValueChange={handleRadiusChange}
               minimumTrackTintColor="#4ECDC4"

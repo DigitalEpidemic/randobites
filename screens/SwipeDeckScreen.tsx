@@ -2,7 +2,6 @@ import React, { useRef, useState, useEffect } from "react";
 import {
   Alert,
   Dimensions,
-  SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
@@ -10,6 +9,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Swiper from "react-native-deck-swiper";
 import { RestaurantCard } from "../components/RestaurantCard";
 import { Restaurant } from "../types/restaurant";
@@ -265,7 +265,7 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
             marginTop={0}
             marginBottom={0}
             // Swipe threshold (how far to swipe before card disappears)
-            swipeThreshold={screenWidth * 0.3}
+            swipeThreshold={screenWidth * 0.25}
             // Overlay labels for visual feedback
             overlayLabels={{
               left: {
@@ -365,8 +365,7 @@ const styles = StyleSheet.create({
   swiperContainer: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "flex-start",
-    paddingTop: 20,
+    justifyContent: "center",
   },
   noMoreCards: {
     width: screenWidth * 0.9,

@@ -183,11 +183,11 @@ export class RestaurantService {
       }
 
       // Try fetching with a larger radius to find new restaurants
-      const expandedRadius = Math.min(radiusInMeters * 1.5, 10000); // Max 10km
+      const expandedRadius = Math.min(radiusInMeters * 2, 15000); // Increase initial expansion and max to 15km
       let restaurants = await this.fetchFromGeoapify(
         location,
         expandedRadius,
-        maxResults * 2 // Fetch more to filter out seen ones
+        maxResults * 3 // Fetch even more to ensure we have enough after filtering
       );
 
       // Filter out already seen restaurants and blacklisted ones
@@ -196,22 +196,29 @@ export class RestaurantService {
         restaurant => !seenRestaurantIds.includes(restaurant.id)
       );
 
+      console.log(`Fresh fetch: Found ${restaurants.length} total, ${filteredRestaurants.length} after blacklist filter, ${unseenRestaurants.length} unseen`);
+
       if (unseenRestaurants.length > 0) {
         // Cache the new results both locally and in shared cache
         await Promise.all([
           this.cacheRestaurants(location, radiusInMeters, filteredRestaurants),
           SharedCacheService.setSharedCache(location, radiusInMeters, filteredRestaurants)
         ]);
-        return this.shuffleArray(unseenRestaurants.slice(0, maxResults));
+
+        // Ensure we return at least a reasonable number of restaurants
+        const restaurantsToReturn = unseenRestaurants.slice(0, Math.max(maxResults, 10));
+        console.log(`Returning ${restaurantsToReturn.length} fresh restaurants`);
+        return this.shuffleArray(restaurantsToReturn);
       }
 
       // If still no new restaurants, try even larger radius
-      const maxRadius = 15000; // 15km max
+      const maxRadius = 20000; // Increase max radius to 20km
       if (expandedRadius < maxRadius) {
+        console.log(`Expanding search to ${maxRadius/1000}km radius`);
         restaurants = await this.fetchFromGeoapify(
           location,
           maxRadius,
-          maxResults * 3
+          maxResults * 4 // Fetch even more from larger radius
         );
 
         const newFilteredRestaurants = await BlacklistService.filterBlacklistedRestaurants(restaurants);
@@ -219,13 +226,17 @@ export class RestaurantService {
           restaurant => !seenRestaurantIds.includes(restaurant.id)
         );
 
+        console.log(`Extended fetch: Found ${restaurants.length} total, ${newFilteredRestaurants.length} after filter, ${newUnseenRestaurants.length} unseen`);
+
         if (newUnseenRestaurants.length > 0) {
           // Cache both locally and in shared cache
           await Promise.all([
             this.cacheRestaurants(location, radiusInMeters, newFilteredRestaurants),
             SharedCacheService.setSharedCache(location, radiusInMeters, newFilteredRestaurants)
           ]);
-          return this.shuffleArray(newUnseenRestaurants.slice(0, maxResults));
+          const extendedRestaurantsToReturn = newUnseenRestaurants.slice(0, Math.max(maxResults, 15));
+          console.log(`Returning ${extendedRestaurantsToReturn.length} restaurants from extended search`);
+          return this.shuffleArray(extendedRestaurantsToReturn);
         }
       }
 

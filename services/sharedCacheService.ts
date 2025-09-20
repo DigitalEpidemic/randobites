@@ -3,7 +3,7 @@ import { LocationCoordinates } from "./locationService";
 import { supabase } from "./supabaseClient";
 
 // Cache configuration
-const SHARED_CACHE_DURATION = 2 * 60 * 60 * 1000; // 2 hours for shared cache
+const SHARED_CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days for shared cache (restaurant data is stable)
 
 interface SharedCacheRecord {
   id: string;

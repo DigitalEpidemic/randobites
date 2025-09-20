@@ -74,7 +74,7 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
 - **Grid-based caching**: Locations are rounded to ~1km grids so nearby users share cache data
 - **Multi-contributor**: When multiple users fetch data for the same area, their results are merged
 - **Local + Shared**: The app first checks local cache (fastest), then shared cache, then makes API calls
-- **Automatic expiration**: Cache expires after 2 hours to ensure data freshness
+- **Automatic expiration**: Cache expires after 7 days (restaurant data is stable)
 
 ## Benefits
 

@@ -8,12 +8,14 @@ import {
   Text,
   View,
   ActivityIndicator,
+  TouchableOpacity,
 } from "react-native";
 import Swiper from "react-native-deck-swiper";
 import { RestaurantCard } from "../components/RestaurantCard";
 import { Restaurant } from "../types/restaurant";
 import { LocationService } from "../services/locationService";
 import { RestaurantService } from "../services/restaurantService";
+import { SettingsService } from "../services/settingsService";
 
 interface SwipeDeckScreenProps {
   navigation: any; // We'll type this properly when we set up navigation
@@ -52,13 +54,17 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
       // Store current location for later use
       setCurrentLocation(location);
 
+      // Get maximum radius from settings
+      const maxRadiusKm = await SettingsService.getMaxRadius();
+      const maxRadiusMeters = SettingsService.kmToMeters(maxRadiusKm);
+
       let nearbyRestaurants: Restaurant[];
 
       if (isRefresh && seenRestaurantIds.length > 0) {
         // Try to fetch fresh restaurants that haven't been seen
         nearbyRestaurants = await RestaurantService.fetchFreshRestaurants(
           location,
-          5000, // 5km radius initially
+          maxRadiusMeters, // Use user's preferred radius
           20,   // max 20 restaurants
           seenRestaurantIds
         );
@@ -66,7 +72,7 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
         // Initial fetch or no restaurants seen yet
         nearbyRestaurants = await RestaurantService.fetchNearbyRestaurants(
           location,
-          5000, // 5km radius
+          maxRadiusMeters, // Use user's preferred radius
           20    // max 20 restaurants
         );
       }
@@ -198,10 +204,20 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>RandoBites</Text>
-        <Text style={styles.headerSubtitle}>
-          Swipe right to match • Swipe left to pass
-        </Text>
+        <View style={styles.headerContent}>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>RandoBites</Text>
+            <Text style={styles.headerSubtitle}>
+              Swipe right to match • Swipe left to pass
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.settingsButton}
+            onPress={() => navigation.navigate("Settings")}
+          >
+            <Text style={styles.settingsIcon}>⚙️</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Content Container */}
@@ -301,6 +317,14 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingVertical: 15,
+  },
+  headerContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  headerTitleContainer: {
+    flex: 1,
     alignItems: "center",
   },
   headerTitle: {
@@ -313,6 +337,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#999",
     textAlign: "center",
+  },
+  settingsButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "#333",
+  },
+  settingsIcon: {
+    fontSize: 20,
   },
   swiperContainer: {
     flex: 1,

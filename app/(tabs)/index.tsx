@@ -12,6 +12,8 @@ export default function HomeScreen() {
           pathname: '/restaurant-detail',
           params: { restaurantData: JSON.stringify(params.restaurant) }
         });
+      } else if (screen === 'Settings') {
+        router.push('/settings');
       }
     },
     goBack: () => router.back(),

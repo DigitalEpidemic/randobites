@@ -32,7 +32,15 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [seenRestaurantIds, setSeenRestaurantIds] = useState<string[]>([]);
   const [currentLocation, setCurrentLocation] = useState<any>(null);
+  const [lastFetchLocation, setLastFetchLocation] = useState<any>(null);
   const swiperRef = useRef<Swiper<Restaurant>>(null);
+
+  // Check if user has moved significantly to warrant new API call
+  const hasMovedSignificantly = (oldLocation: any, newLocation: any): boolean => {
+    if (!oldLocation) return true;
+    const distance = LocationService.calculateDistance(oldLocation, newLocation);
+    return distance > 0.5; // 500m threshold
+  };
 
   // Fetch nearby restaurants on component mount
   useEffect(() => {
@@ -51,8 +59,16 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
         throw new Error('Unable to get your location. Please enable location services.');
       }
 
+      // Check if user has moved significantly since last fetch
+      if (!isRefresh && !hasMovedSignificantly(lastFetchLocation, location)) {
+        console.log('User has not moved significantly, skipping API call');
+        setIsLoading(false);
+        return;
+      }
+
       // Store current location for later use
       setCurrentLocation(location);
+      setLastFetchLocation(location);
 
       // Get maximum radius from settings
       const maxRadiusKm = await SettingsService.getMaxRadius();

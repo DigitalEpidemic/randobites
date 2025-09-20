@@ -8,7 +8,7 @@ import { BlacklistService } from "./blacklistService";
 const GEOAPIFY_API_KEY = process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY;
 
 // Cache configuration
-const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes in milliseconds
+const CACHE_DURATION = 4 * 60 * 60 * 1000; // 4 hours in milliseconds (was 30 minutes)
 const CACHE_KEY_PREFIX = "restaurants_cache_";
 
 interface GeoapifyResponse {

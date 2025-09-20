@@ -1,21 +1,21 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
   StatusBar,
   StyleSheet,
   Text,
-  View,
-  ActivityIndicator,
   TouchableOpacity,
+  View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import Swiper from "react-native-deck-swiper";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { RestaurantCard } from "../components/RestaurantCard";
-import { Restaurant } from "../types/restaurant";
 import { LocationService } from "../services/locationService";
 import { RestaurantService } from "../services/restaurantService";
 import { SettingsService } from "../services/settingsService";
+import { Restaurant } from "../types/restaurant";
 
 interface SwipeDeckScreenProps {
   navigation: any; // We'll type this properly when we set up navigation
@@ -36,9 +36,15 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
   const swiperRef = useRef<Swiper<Restaurant>>(null);
 
   // Check if user has moved significantly to warrant new API call
-  const hasMovedSignificantly = (oldLocation: any, newLocation: any): boolean => {
+  const hasMovedSignificantly = (
+    oldLocation: any,
+    newLocation: any
+  ): boolean => {
     if (!oldLocation) return true;
-    const distance = LocationService.calculateDistance(oldLocation, newLocation);
+    const distance = LocationService.calculateDistance(
+      oldLocation,
+      newLocation
+    );
     return distance > 0.5; // 500m threshold
   };
 
@@ -56,12 +62,14 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
       const location = await LocationService.getCurrentLocation();
 
       if (!location) {
-        throw new Error('Unable to get your location. Please enable location services.');
+        throw new Error(
+          "Unable to get your location. Please enable location services."
+        );
       }
 
       // Check if user has moved significantly since last fetch
       if (!isRefresh && !hasMovedSignificantly(lastFetchLocation, location)) {
-        console.log('User has not moved significantly, skipping API call');
+        console.log("User has not moved significantly, skipping API call");
         setIsLoading(false);
         return;
       }
@@ -81,7 +89,7 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
         nearbyRestaurants = await RestaurantService.fetchFreshRestaurants(
           location,
           maxRadiusMeters, // Use user's preferred radius
-          500,   // max 500 restaurants
+          500, // max 500 restaurants
           seenRestaurantIds
         );
       } else {
@@ -89,20 +97,23 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
         nearbyRestaurants = await RestaurantService.fetchNearbyRestaurants(
           location,
           maxRadiusMeters, // Use user's preferred radius
-          500    // max 500 restaurants
+          500 // max 500 restaurants
         );
       }
 
       if (nearbyRestaurants.length === 0) {
-        throw new Error('No restaurants found in your area. Please try again later.');
+        throw new Error(
+          "No restaurants found in your area. Please try again later."
+        );
       }
 
       setRestaurants(nearbyRestaurants);
       setCardIndex(0); // Reset card index
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load restaurants';
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to load restaurants";
       setError(errorMessage);
-      console.error('Error fetching restaurants:', err);
+      console.error("Error fetching restaurants:", err);
     } finally {
       setIsLoading(false);
     }
@@ -118,7 +129,7 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
     console.log("Dismissed:", restaurant.name);
 
     // Track this restaurant as seen
-    setSeenRestaurantIds(prev => {
+    setSeenRestaurantIds((prev) => {
       if (!prev.includes(restaurant.id)) {
         return [...prev, restaurant.id];
       }
@@ -132,7 +143,7 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
     console.log("Matched:", restaurant.name);
 
     // Track this restaurant as seen
-    setSeenRestaurantIds(prev => {
+    setSeenRestaurantIds((prev) => {
       if (!prev.includes(restaurant.id)) {
         return [...prev, restaurant.id];
       }
@@ -150,22 +161,18 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
       ? "Looking for new restaurants within your set radius."
       : "Would you like to find more restaurants in your area?";
 
-    Alert.alert(
-      "No more restaurants!",
-      alertMessage,
-      [
-        {
-          text: "No thanks",
-          style: "cancel",
+    Alert.alert("No more restaurants!", alertMessage, [
+      {
+        text: "No thanks",
+        style: "cancel",
+      },
+      {
+        text: hasSeenRestaurants ? "Find new ones" : "Find more",
+        onPress: () => {
+          retryFetchRestaurants();
         },
-        {
-          text: hasSeenRestaurants ? "Find new ones" : "Find more",
-          onPress: () => {
-            retryFetchRestaurants();
-          },
-        },
-      ]
-    );
+      },
+    ]);
   };
 
   // Handle card index change
@@ -205,10 +212,7 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
     <View style={styles.errorContainer}>
       <Text style={styles.errorText}>Oops!</Text>
       <Text style={styles.errorSubtext}>{error}</Text>
-      <Text
-        style={styles.retryButton}
-        onPress={retryFetchRestaurants}
-      >
+      <Text style={styles.retryButton} onPress={retryFetchRestaurants}>
         Tap to retry
       </Text>
     </View>
@@ -320,7 +324,6 @@ export const SwipeDeckScreen: React.FC<SwipeDeckScreenProps> = ({
           renderNoMoreCards()
         )}
       </View>
-
     </SafeAreaView>
   );
 };
@@ -341,18 +344,16 @@ const styles = StyleSheet.create({
   },
   headerTitleContainer: {
     flex: 1,
-    alignItems: "center",
+    alignItems: "flex-start",
   },
   headerTitle: {
     fontSize: 32,
     fontWeight: "bold",
     color: "#fff",
-    marginBottom: 5,
   },
   headerSubtitle: {
     fontSize: 14,
     color: "#999",
-    textAlign: "center",
   },
   settingsButton: {
     padding: 8,

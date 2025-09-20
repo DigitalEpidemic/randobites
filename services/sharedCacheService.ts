@@ -116,12 +116,32 @@ export class SharedCacheService {
 
       if (existingData && existingData.length > 0) {
         // Merge with existing data to create a richer cache
-        const existingIds = new Set(existingData.map(r => r.id));
-        const newRestaurants = restaurants.filter(r => !existingIds.has(r.id));
-        mergedRestaurants = [...existingData, ...newRestaurants];
+        const existingRestaurantsMap = new Map(existingData.map(r => [r.id, r]));
+
+        // For each new restaurant, check if it exists
+        restaurants.forEach(newRestaurant => {
+          const existingRestaurant = existingRestaurantsMap.get(newRestaurant.id);
+
+          if (existingRestaurant) {
+            // If existing restaurant is user-contributed, preserve it
+            // Otherwise, update with new data
+            if (existingRestaurant.dataSource === 'user-contributed') {
+              // Keep the user-contributed version
+              existingRestaurantsMap.set(newRestaurant.id, existingRestaurant);
+            } else {
+              // Update with new API data
+              existingRestaurantsMap.set(newRestaurant.id, newRestaurant);
+            }
+          } else {
+            // Add new restaurant
+            existingRestaurantsMap.set(newRestaurant.id, newRestaurant);
+          }
+        });
+
+        mergedRestaurants = Array.from(existingRestaurantsMap.values());
         contributors += 1; // Increment contributor count
 
-        console.log(`Merging ${newRestaurants.length} new restaurants with ${existingData.length} existing ones`);
+        console.log(`Merged restaurants: ${mergedRestaurants.length} total, preserving user-contributed data`);
       }
 
       // Upsert the cache record

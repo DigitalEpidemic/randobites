@@ -415,6 +415,7 @@ export class RestaurantService {
       priceRange: this.generateRandomPriceRange(),
       isOpen: undefined, // Could be determined from opening_hours if needed
       hours: openingHours,
+      dataSource: 'api' as const,
     };
   }
 
@@ -468,6 +469,7 @@ export class RestaurantService {
       priceRange: this.generateRandomPriceRange(),
       isOpen: undefined, // Geoapify opening hours are complex to parse
       hours: raw.opening_hours,
+      dataSource: 'api' as const,
     };
   }
 
@@ -835,6 +837,90 @@ export class RestaurantService {
   }
 
   /**
+   * Update restaurant with user-provided image URL
+   */
+  static async updateRestaurantImage(
+    restaurantId: string,
+    imageUrl: string,
+    location: LocationCoordinates,
+    radiusInMeters: number = 5000
+  ): Promise<boolean> {
+    try {
+      // Get current cached restaurants to find and update the specific one
+      const cachedRestaurants = await this.getCachedRestaurants(location, radiusInMeters);
+      if (!cachedRestaurants) {
+        console.log('No cached restaurants found to update');
+        return false;
+      }
+
+      // Find the restaurant to update
+      const restaurantIndex = cachedRestaurants.findIndex(r => r.id === restaurantId);
+      if (restaurantIndex === -1) {
+        console.log(`Restaurant with ID ${restaurantId} not found in cache`);
+        return false;
+      }
+
+      // Update the restaurant with new image and mark as user-contributed
+      const updatedRestaurant: Restaurant = {
+        ...cachedRestaurants[restaurantIndex],
+        image: imageUrl,
+        dataSource: 'user-contributed'
+      };
+
+      // Update the local array
+      const updatedRestaurants = [...cachedRestaurants];
+      updatedRestaurants[restaurantIndex] = updatedRestaurant;
+
+      // Save to both local and shared cache
+      await Promise.all([
+        this.cacheRestaurants(location, radiusInMeters, updatedRestaurants),
+        SharedCacheService.setSharedCache(location, radiusInMeters, updatedRestaurants)
+      ]);
+
+      console.log(`Successfully updated restaurant ${restaurantId} with user-provided image`);
+      return true;
+    } catch (error) {
+      console.error('Error updating restaurant image:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Clear only API-sourced restaurants from cache
+   */
+  static async clearAPIRestaurants(
+    location: LocationCoordinates,
+    radiusInMeters: number = 5000
+  ): Promise<void> {
+    try {
+      // Get current cached restaurants
+      const cachedRestaurants = await this.getCachedRestaurants(location, radiusInMeters);
+      if (!cachedRestaurants) {
+        console.log('No cached restaurants to clear');
+        return;
+      }
+
+      // Keep only user-contributed restaurants
+      const userContributedRestaurants = cachedRestaurants.filter(
+        restaurant => restaurant.dataSource === 'user-contributed'
+      );
+
+      console.log(`Cleared ${cachedRestaurants.length - userContributedRestaurants.length} API restaurants, kept ${userContributedRestaurants.length} user-contributed ones`);
+
+      // Update cache with only user-contributed data
+      if (userContributedRestaurants.length > 0) {
+        await this.cacheRestaurants(location, radiusInMeters, userContributedRestaurants);
+      } else {
+        // Clear cache entirely if no user contributions
+        const cacheKey = this.getCacheKey(location, radiusInMeters);
+        await AsyncStorage.removeItem(cacheKey);
+      }
+    } catch (error) {
+      console.error('Error clearing API restaurants:', error);
+    }
+  }
+
+  /**
    * Shuffle array using Fisher-Yates algorithm for randomization
    */
   private static shuffleArray<T>(array: T[]): T[] {
@@ -867,6 +953,7 @@ export class RestaurantService {
         priceRange: "$$" as const,
         isOpen: true,
         hours: "11:00 AM - 10:00 PM",
+        dataSource: "api" as const,
       },
       {
         id: "2",
@@ -883,6 +970,7 @@ export class RestaurantService {
         priceRange: "$$$" as const,
         isOpen: true,
         hours: "12:00 PM - 11:00 PM",
+        dataSource: "api" as const,
       },
       {
         id: "3",
@@ -899,6 +987,7 @@ export class RestaurantService {
         priceRange: "$" as const,
         isOpen: false,
         hours: "4:00 PM - 12:00 AM",
+        dataSource: "api" as const,
       },
       {
         id: "4",
@@ -915,6 +1004,7 @@ export class RestaurantService {
         priceRange: "$$" as const,
         isOpen: true,
         hours: "11:00 AM - 2:00 AM",
+        dataSource: "api" as const,
       },
       {
         id: "5",
@@ -931,6 +1021,7 @@ export class RestaurantService {
         priceRange: "$$" as const,
         isOpen: true,
         hours: "8:00 AM - 9:00 PM",
+        dataSource: "api" as const,
       },
       {
         id: "6",
@@ -947,6 +1038,7 @@ export class RestaurantService {
         priceRange: "$$$" as const,
         isOpen: true,
         hours: "5:00 PM - 11:00 PM",
+        dataSource: "api" as const,
       },
       {
         id: "7",
@@ -963,6 +1055,7 @@ export class RestaurantService {
         priceRange: "$$" as const,
         isOpen: true,
         hours: "11:30 AM - 10:30 PM",
+        dataSource: "api" as const,
       },
       {
         id: "8",
@@ -979,6 +1072,7 @@ export class RestaurantService {
         priceRange: "$$" as const,
         isOpen: false,
         hours: "12:00 PM - 10:00 PM",
+        dataSource: "api" as const,
       },
     ];
 

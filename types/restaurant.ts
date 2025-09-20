@@ -12,4 +12,5 @@ export interface Restaurant {
   priceRange?: '$' | '$$' | '$$$' | '$$$$';
   isOpen?: boolean;
   hours?: string;
+  dataSource: 'api' | 'user-contributed';
 }

@@ -13,9 +13,11 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { Restaurant } from '../types/restaurant';
 import { RestaurantService } from '../services/restaurantService';
 import { LocationCoordinates, LocationService } from '../services/locationService';
+import { ImageUploadModal } from '../components/ImageUploadModal';
 
 interface RestaurantDetailScreenProps {
   route: {
@@ -35,6 +37,7 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
   const [restaurant, setRestaurant] = useState<Restaurant>(initialRestaurant);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<LocationCoordinates | null>(null);
+  const [isImageModalVisible, setIsImageModalVisible] = useState(false);
 
   // Get current location when component mounts
   useEffect(() => {
@@ -176,6 +179,39 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
     navigation.goBack();
   };
 
+  const handleEditImage = () => {
+    setIsImageModalVisible(true);
+  };
+
+  const handleUpdateImage = async (newImageUrl: string): Promise<boolean> => {
+    if (!currentLocation) {
+      Alert.alert('Error', 'Unable to get current location. Please try again.');
+      return false;
+    }
+
+    try {
+      const success = await RestaurantService.updateRestaurantImage(
+        restaurant.id,
+        newImageUrl,
+        currentLocation
+      );
+
+      if (success) {
+        // Update local state with new image
+        setRestaurant(prev => ({
+          ...prev,
+          image: newImageUrl,
+          dataSource: 'user-contributed'
+        }));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error updating restaurant image:', error);
+      return false;
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1a1a1a" />
@@ -192,6 +228,11 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
           {/* Back Button */}
           <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
             <Text style={styles.backButtonText}>←</Text>
+          </TouchableOpacity>
+
+          {/* Edit Image Button */}
+          <TouchableOpacity style={styles.editImageButton} onPress={handleEditImage}>
+            <Feather name="edit-3" size={20} color="white" />
           </TouchableOpacity>
 
           {/* Status Badge */}
@@ -302,6 +343,15 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
           </View>
         </View>
       </ScrollView>
+
+      {/* Image Upload Modal */}
+      <ImageUploadModal
+        visible={isImageModalVisible}
+        onClose={() => setIsImageModalVisible(false)}
+        onSubmit={handleUpdateImage}
+        currentImageUrl={restaurant.image}
+        restaurantName={restaurant.name}
+      />
     </SafeAreaView>
   );
 };
@@ -341,10 +391,21 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
   },
-  statusBadge: {
+  editImageButton: {
     position: 'absolute',
     top: 50,
     right: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusBadge: {
+    position: 'absolute',
+    top: 50,
+    right: 80,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 15,

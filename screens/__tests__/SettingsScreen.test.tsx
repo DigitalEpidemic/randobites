@@ -1,5 +1,5 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
 import { SettingsScreen } from '../SettingsScreen';
 import { SettingsService, DEFAULT_SETTINGS } from '../../services/settingsService';
 
@@ -54,7 +54,7 @@ describe('SettingsScreen', () => {
     expect(getByText('Loading settings...')).toBeTruthy();
   });
 
-  it('calls loadSettings on mount', () => {
+  it('calls loadSettings on mount', async () => {
     // Use a promise that resolves immediately to avoid async state issues
     mockSettingsService.loadSettings.mockImplementation(() =>
       Promise.resolve(DEFAULT_SETTINGS)
@@ -62,6 +62,8 @@ describe('SettingsScreen', () => {
 
     render(<SettingsScreen navigation={mockNavigation} />);
 
-    expect(mockSettingsService.loadSettings).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(mockSettingsService.loadSettings).toHaveBeenCalledTimes(1);
+    });
   });
 });

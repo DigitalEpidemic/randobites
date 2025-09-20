@@ -2,8 +2,11 @@ import { Restaurant } from "../types/restaurant";
 import { LocationCoordinates } from "./locationService";
 import { supabase } from "./supabaseClient";
 
-// Cache configuration
-const SHARED_CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days for shared cache (restaurant data is stable)
+// Cache configuration - align with calendar months for predictable billing
+const getEndOfMonth = (date: Date = new Date()): number => {
+  const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+  return endOfMonth.getTime();
+};
 
 interface SharedCacheRecord {
   id: string;
@@ -75,11 +78,12 @@ export class SharedCacheService {
 
       const cacheRecord = data[0] as SharedCacheRecord;
       const now = Date.now();
-      const cacheAge = now - new Date(cacheRecord.updated_at).getTime();
+      const cacheCreatedAt = new Date(cacheRecord.updated_at);
+      const cacheExpiryTime = getEndOfMonth(cacheCreatedAt);
 
-      // Check if shared cache is expired
-      if (cacheAge > SHARED_CACHE_DURATION) {
-        console.log('Shared cache expired, cleaning up');
+      // Check if shared cache is expired (past end of month when it was created)
+      if (now > cacheExpiryTime) {
+        console.log('Shared cache expired (end of month), cleaning up');
         // Optionally clean up expired cache
         await this.cleanupExpiredCache(cacheRecord.id);
         return null;

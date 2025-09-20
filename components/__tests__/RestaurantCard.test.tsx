@@ -98,10 +98,10 @@ describe("RestaurantCard", () => {
       />
     );
 
-    expect(getByText("★★★★")).toBeTruthy();
+    expect(getByText("★★★★☆")).toBeTruthy();
   });
 
-  it("renders rating stars correctly with half star", () => {
+  it("renders rating stars correctly with decimal rating", () => {
     const { getByText } = render(
       <RestaurantCard
         restaurant={mockRestaurant}
@@ -109,7 +109,7 @@ describe("RestaurantCard", () => {
       />
     );
 
-    // 4.5 rating should show 4 full stars and 1 half star
+    // 4.5 rating should floor to 4 full stars, 1 empty star (5 total)
     expect(getByText("★★★★☆")).toBeTruthy();
   });
 
@@ -161,17 +161,30 @@ describe("RestaurantCard", () => {
     expect(getByText("Unknown")).toBeTruthy();
   });
 
-  it("renders zero rating correctly (no stars)", () => {
+  it("renders zero rating correctly (all empty stars)", () => {
     const restaurantWithZeroRating = { ...mockRestaurant, rating: 0 };
-    const { queryByText } = render(
+    const { getByText } = render(
       <RestaurantCard
         restaurant={restaurantWithZeroRating}
         currentLocation={mockLocation}
       />
     );
 
-    // Should not render any stars
-    expect(queryByText(/★/)).toBeNull();
+    // Should render 5 empty stars
+    expect(getByText("☆☆☆☆☆")).toBeTruthy();
+  });
+
+  it("renders 3.9 rating correctly (3 full stars, 2 empty stars)", () => {
+    const restaurantWith39Rating = { ...mockRestaurant, rating: 3.9 };
+    const { getByText } = render(
+      <RestaurantCard
+        restaurant={restaurantWith39Rating}
+        currentLocation={mockLocation}
+      />
+    );
+
+    // 3.9 should floor to 3 full stars, 2 empty stars (5 total)
+    expect(getByText("★★★☆☆")).toBeTruthy();
   });
 
   it("renders rating value correctly", () => {

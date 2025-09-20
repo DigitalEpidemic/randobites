@@ -36,14 +36,17 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
   const renderStars = (rating: number) => {
     const stars = [];
     const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 !== 0;
+    const totalStars = 5;
 
     for (let i = 0; i < fullStars; i++) {
       stars.push('★');
     }
-    if (hasHalfStar) {
+
+    const emptyStars = totalStars - fullStars;
+    for (let i = 0; i < emptyStars; i++) {
       stars.push('☆');
     }
+
     return stars.join('');
   };
 

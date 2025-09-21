@@ -72,6 +72,7 @@ describe("RestaurantService", () => {
     "No restaurants found, using mock data",
     "Error fetching nearby restaurants:",
     "Error fetching fresh restaurants:",
+    "Fresh fetch: Found",
   ];
 
   beforeEach(() => {

@@ -23,8 +23,45 @@ jest.mock("../supabaseClient", () => ({
 }));
 
 describe("BlacklistService", () => {
+  const originalConsoleLog = console.log;
+  const originalConsoleError = console.error;
+
+  const suppressedMessages = [
+    "Added",
+    "to shared blacklist",
+    "to local blacklist",
+    "Restaurant",
+    "has been reported",
+    "removed from",
+    "blacklist",
+    "Local blacklist cleared",
+  ];
+
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Suppress specific console messages for this test suite
+    console.log = (...args) => {
+      const message = args.join(" ");
+      const shouldSuppress = suppressedMessages.some((pattern) =>
+        message.includes(pattern)
+      );
+      if (!shouldSuppress) originalConsoleLog(...args);
+    };
+
+    console.error = (...args) => {
+      const message = args.join(" ");
+      const shouldSuppress = suppressedMessages.some((pattern) =>
+        message.includes(pattern)
+      );
+      if (!shouldSuppress) originalConsoleError(...args);
+    };
+  });
+
+  afterEach(() => {
+    // Restore original console methods
+    console.log = originalConsoleLog;
+    console.error = originalConsoleError;
   });
 
   describe("reportRestaurant", () => {

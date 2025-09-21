@@ -5,14 +5,6 @@ const originalConsoleLog = console.log;
 const originalConsoleError = console.error;
 
 const suppressedLogs = [
-  "Added",
-  "to shared blacklist",
-  "to local blacklist",
-  "Restaurant",
-  "has been reported",
-  "removed from",
-  "blacklist",
-  "Local blacklist cleared",
   "USING MOCK RESTAURANT DATA",
   "Selected",
   "image:",

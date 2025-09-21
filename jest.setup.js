@@ -58,11 +58,19 @@ jest.mock("expo-location", () => ({
   requestForegroundPermissionsAsync: jest.fn(() =>
     Promise.resolve({ status: "granted" })
   ),
+  getForegroundPermissionsAsync: jest.fn(() =>
+    Promise.resolve({ status: "granted" })
+  ),
   getCurrentPositionAsync: jest.fn(() =>
     Promise.resolve({
       coords: { latitude: 37.7749, longitude: -122.4194 },
     })
   ),
+  Accuracy: {
+    Balanced: 3,
+    High: 4,
+    Low: 1,
+  },
 }));
 
 jest.mock("expo-haptics", () => ({

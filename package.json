@@ -71,10 +71,17 @@
       "!app/_layout.tsx",
       "!**/node_modules/**",
       "!**/__tests__/**",
-      "!**/jest.setup.js"
+      "!**/jest.setup.js",
+      "!constants/**"
     ],
     "coverageDirectory": "coverage",
-    "coverageReporters": ["text", "lcov", "html"],
-    "setupFilesAfterEnv": ["<rootDir>/jest.setup.js"]
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "html"
+    ],
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.js"
+    ]
   }
 }

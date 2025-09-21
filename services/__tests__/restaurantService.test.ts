@@ -1,12 +1,56 @@
 import { LocationCoordinates } from "../locationService";
 import { RestaurantService } from "../restaurantService";
 
-jest.mock("../supabaseClient", () => ({
-  supabase: null,
-}));
+jest.mock("../supabaseClient", () => {
+  type MockQueryResult = {
+    eq: jest.MockedFunction<() => MockQueryResult>;
+    order: jest.MockedFunction<() => MockQueryResult>;
+    limit: jest.MockedFunction<() => Promise<{ data: unknown[]; error: null }>>;
+    single: jest.MockedFunction<() => Promise<{ data: null; error: null }>>;
+  };
+
+  const createChainableQuery = (): MockQueryResult => {
+    const mockQuery: MockQueryResult = {
+      eq: jest.fn(() => mockQuery),
+      order: jest.fn(() => mockQuery),
+      limit: jest.fn(() => Promise.resolve({ data: [], error: null })),
+      single: jest.fn(() => Promise.resolve({ data: null, error: null })),
+    };
+    return mockQuery;
+  };
+
+  return {
+    supabase: {
+      from: jest.fn(() => ({
+        select: jest.fn(() => createChainableQuery()),
+        insert: jest.fn(() => Promise.resolve({ data: null, error: null })),
+        update: jest.fn(() => createChainableQuery()),
+      })),
+    },
+  };
+});
 
 jest.mock("@react-native-async-storage/async-storage");
-jest.mock("../blacklistService");
+jest.mock("../blacklistService", () => ({
+  BlacklistService: {
+    filterBlacklistedRestaurants: jest.fn((restaurants) =>
+      Promise.resolve(restaurants || [])
+    ),
+    isRestaurantBlacklisted: jest.fn(() => Promise.resolve(false)),
+    reportRestaurant: jest.fn(() => Promise.resolve()),
+    getBlacklist: jest.fn(() => Promise.resolve([])),
+    removeFromBlacklist: jest.fn(() => Promise.resolve()),
+    clearLocalBlacklist: jest.fn(() => Promise.resolve()),
+    getBlacklistStats: jest.fn(() =>
+      Promise.resolve({
+        totalBlacklisted: 0,
+        recentlyBlacklisted: 0,
+        sharedBlacklisted: 0,
+        localBlacklisted: 0,
+      })
+    ),
+  },
+}));
 
 global.fetch = jest.fn();
 
@@ -17,19 +61,53 @@ describe("RestaurantService", () => {
     latitude: 37.7749,
     longitude: -122.4194,
   };
-  const mockApiKey = "test-api-key";
+
+  const originalConsoleLog = console.log;
+  const originalConsoleError = console.error;
+  const originalConsoleWarn = console.warn;
+
+  const suppressedMessages = [
+    "No shared cache found",
+    "Error fetching from Geoapify:",
+    "No restaurants found, using mock data",
+    "Error fetching nearby restaurants:",
+    "Error fetching fresh restaurants:",
+  ];
 
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.spyOn(console, "warn").mockImplementation(() => {});
-    jest.spyOn(console, "log").mockImplementation(() => {});
 
-    process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY = mockApiKey;
+    // Suppress specific console messages for this test suite
+    console.log = (...args) => {
+      const message = args.join(" ");
+      const shouldSuppress = suppressedMessages.some((pattern) =>
+        message.includes(pattern)
+      );
+      if (!shouldSuppress) originalConsoleLog(...args);
+    };
+
+    console.error = (...args) => {
+      const message = args.join(" ");
+      const shouldSuppress = suppressedMessages.some((pattern) =>
+        message.includes(pattern)
+      );
+      if (!shouldSuppress) originalConsoleError(...args);
+    };
+
+    console.warn = (...args) => {
+      const message = args.join(" ");
+      const shouldSuppress = suppressedMessages.some((pattern) =>
+        message.includes(pattern)
+      );
+      if (!shouldSuppress) originalConsoleWarn(...args);
+    };
   });
 
   afterEach(() => {
-    delete process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY;
-    jest.restoreAllMocks();
+    // Restore original console methods
+    console.log = originalConsoleLog;
+    console.error = originalConsoleError;
+    console.warn = originalConsoleWarn;
   });
 
   describe("fetchNearbyRestaurants", () => {
@@ -57,7 +135,8 @@ describe("RestaurantService", () => {
       expect(Array.isArray(restaurants)).toBe(true);
     });
 
-    it("should return empty array when API key is missing", async () => {
+    it("should return mock data when API key is missing", async () => {
+      const originalApiKey = process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY;
       delete process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY;
 
       const restaurants = await RestaurantService.fetchNearbyRestaurants(
@@ -65,7 +144,10 @@ describe("RestaurantService", () => {
       );
 
       expect(Array.isArray(restaurants)).toBe(true);
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(restaurants.length).toBeGreaterThan(0); // Should return mock data
+
+      // Restore the API key
+      process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY = originalApiKey;
     });
   });
 

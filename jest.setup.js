@@ -13,6 +13,13 @@ const suppressedLogs = [
   "removed from",
   "blacklist",
   "Local blacklist cleared",
+  "USING MOCK RESTAURANT DATA",
+  "Selected",
+  "image:",
+  "Mock restaurants data:",
+  "No cached restaurants",
+  "Supabase not configured",
+  "Geoapify API key not configured",
 ];
 
 console.log = (...args) => {
@@ -39,6 +46,9 @@ console.error = (...args) => {
 jest.mock("@react-native-async-storage/async-storage", () =>
   require("@react-native-async-storage/async-storage/jest/async-storage-mock")
 );
+
+// Set up environment variables for tests
+process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY = "test-geoapify-key";
 
 // Mock Expo modules
 jest.mock("expo-constants", () => ({

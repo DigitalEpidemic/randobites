@@ -1,11 +1,13 @@
 import { LocationCoordinates } from "../locationService";
 import { RestaurantService } from "../restaurantService";
 
-// Mock dependencies
+jest.mock("../supabaseClient", () => ({
+  supabase: null,
+}));
+
 jest.mock("@react-native-async-storage/async-storage");
 jest.mock("../blacklistService");
 
-// Mock fetch
 global.fetch = jest.fn();
 
 const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
@@ -19,11 +21,15 @@ describe("RestaurantService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+    jest.spyOn(console, "log").mockImplementation(() => {});
+
     process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY = mockApiKey;
   });
 
   afterEach(() => {
     delete process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY;
+    jest.restoreAllMocks();
   });
 
   describe("fetchNearbyRestaurants", () => {

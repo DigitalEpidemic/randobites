@@ -1,50 +1,162 @@
-# Welcome to your Expo app 👋
+# RandoBites 🍽️
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A React Native app built with Expo that helps users discover restaurants with a Tinder-like swiping interface. Swipe through nearby restaurants, get detailed information, and find your next dining experience.
 
-## Get started
+## Features
 
-1. Install dependencies
+- **Tinder-style Swiping**: Swipe left to dismiss, right to save restaurants
+- **Real Restaurant Data**: Integration with Geoapify API for authentic restaurant information
+- **Location-based Discovery**: Find restaurants near your current location
+- **Restaurant Details**: View comprehensive information including cuisine, ratings, and contact info
+- **Shared Cache System**: Uses Supabase for efficient data sharing and reduced API calls
+- **Blacklist Management**: Automatically filters out previously dismissed restaurants
+- **Cross-platform**: Runs on iOS, Android, and web
+
+## Tech Stack
+
+- **Framework**: React Native with Expo 54
+- **Router**: Expo Router with TypeScript
+- **UI**: Custom components with react-native-deck-swiper
+- **APIs**: Geoapify for restaurant data
+- **Backend**: Supabase for shared caching
+- **Storage**: AsyncStorage for local data persistence
+- **Location**: expo-location for GPS functionality
+- **Testing**: Jest with React Native Testing Library
+
+## Getting Started
+
+1. **Install dependencies**
 
    ```bash
    npm install
    ```
 
-2. Start the app
+2. **Set up environment variables**
+
+   Create a `.env` file with your API keys:
+
+   ```bash
+   EXPO_PUBLIC_GEOAPIFY_API_KEY=your_geoapify_key
+   EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_key
+   ```
+
+3. **Start the development server**
 
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+4. **Open the app**
+   - Use Expo Go app on your device
+   - Run on iOS Simulator or Android Emulator
+   - Open in web browser
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Project Structure
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+├── app/                         # Expo Router pages
+│   ├── (tabs)/
+│   │   ├── index.tsx            # Home screen with swipe deck
+│   │   └── debug.tsx            # Debug/testing screen
+│   ├── restaurant-detail.tsx    # Restaurant detail view
+│   └── settings.tsx             # App settings
+├── components/                  # Reusable UI components
+│   ├── RestaurantCard.tsx       # Individual restaurant card
+│   ├── BulkImageManager.tsx     # Image management utilities
+│   └── ui/                      # Base UI components
+├── services/                    # Business logic and API calls
+│   ├── restaurantService.ts     # Geoapify API integration
+│   ├── locationService.ts       # GPS and location handling
+│   ├── sharedCacheService.ts    # Supabase cache management
+│   ├── blacklistService.ts      # Restaurant filtering logic
+│   └── supabaseClient.ts        # Database connection
+├── screens/                     # Screen components
+│   └── SwipeDeckScreen.tsx      # Main swiping interface
+├── types/                       # TypeScript definitions
+│   └── restaurant.ts            # Restaurant data model
+└── hooks/                       # Custom React hooks
+    └── useRestaurants.ts        # Restaurant data fetching
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## API Setup
 
-## Learn more
+### Geoapify (Required)
 
-To learn more about developing your project with Expo, look at the following resources:
+1. Sign up at [geoapify.com](https://geoapify.com)
+2. Create an API key
+3. Add to your `.env` file
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Supabase (Optional - for shared caching)
 
-## Join the community
+1. Create project at [supabase.com](https://supabase.com)
+2. Run the SQL setup from `SUPABASE_SETUP.md`
+3. Add credentials to `.env` file
 
-Join our community of developers creating universal apps.
+See `GEOAPIFY_SETUP.md` and `SUPABASE_SETUP.md` for detailed setup instructions.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Development Commands
+
+```bash
+# Development
+npm start                # Start Expo dev server
+npm run android          # Run on Android
+npm run ios              # Run on iOS
+npm run web              # Run in browser
+
+# Testing
+npm test                 # Run tests
+npm run test:watch       # Run tests in watch mode
+npm run test:coverage    # Generate coverage report
+
+# Code Quality
+npm run lint             # Check code style
+```
+
+## Key Features Explained
+
+### Restaurant Discovery
+
+- Fetches real restaurant data from Geoapify API
+- Caches data locally and in Supabase for performance
+- Filters based on user location and preferences
+
+### Swiping Interface
+
+- Smooth card animations with react-native-deck-swiper
+- Visual feedback with overlay labels
+- Automatic progression through restaurant stack
+
+### Data Management
+
+- Smart caching system reduces API calls
+- Blacklist prevents showing dismissed restaurants
+- Shared cache benefits all users in the same area
+
+## Testing
+
+The app includes comprehensive test coverage for core functionality:
+
+```bash
+npm test                   # Run all tests
+npm run test:coverage      # Generate coverage report
+```
+
+Tests cover:
+
+- Restaurant service API integration
+- Location service functionality
+- Cache management
+- Component rendering and interactions
+
+## Deployment
+
+The app is configured for deployment with Expo Application Services (EAS):
+
+```bash
+# Build for production
+eas build --platform all
+
+# Submit to app stores
+eas submit --platform all
+```

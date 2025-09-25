@@ -93,7 +93,7 @@ A React Native app built with Expo that helps users discover restaurants with a 
 2. Run the SQL setup from `SUPABASE_SETUP.md`
 3. Add credentials to `.env` file
 
-See `GEOAPIFY_SETUP.md` and `SUPABASE_SETUP.md` for detailed setup instructions.
+See [GEOAPIFY_SETUP.md](GEOAPIFY_SETUP.md) and [SUPABASE_SETUP.md](SUPABASE_SETUP.md) for detailed setup instructions.
 
 ## Development Commands
 
